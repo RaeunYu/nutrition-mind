@@ -92,11 +92,11 @@ MCP 도구 4종: `search_legal_provisions`, `get_functional_ingredient`, `get_pr
 ## 🗺️ 구현 현황 (GitHub Issues)
 
 - [x] #2 프로젝트 골격 및 Docker Compose 인프라 구성
-- [ ] #3 국가법령정보센터 법령 수집 및 legal_provisions 스키마 저장
+- [x] #3 국가법령정보센터 법령 수집 및 legal_provisions 스키마 저장 (7종 398조문, 표시기준=administrative_rule, 참조 엣지 53건)
 - [x] #4 법령 RAG 파이프라인 및 LangGraph 6단계 노드 구현 (359조문 임베딩·pgvector 검색·6단계 그래프 동작) — RAG 평가지표 스크립트는 #8에서
-- [ ] #5 식약처 기능성 정보 구조화 조회 및 total_count 증분 갱신
+- [x] #5 식약처 기능성 정보 구조화 조회 및 total_count 증분 갱신 (5개 API 93,273건 적재)
 - [x] #6 FastMCP 도구 노출 및 토큰 기반 인증 구현 (법령검색은 pgvector 벡터 검색 연동 완료)
-- [ ] #7 웹 데모: JWT 로그인·고객:성분 시딩·챗봇 (로그인/챗봇 스텁 완료)
+- [x] #7 웹 데모: JWT 로그인·고객:성분 시딩(Prisma seed)·챗봇 (pgvector 근거 응답 + 각주 출처)
 - [x] #8 RAG 평가 지표: `ingest/eval_rag.py` — Recall@5 1.000 / MRR 0.792 (8문항 골드셋)
 
 Epic: https://github.com/RaeunYu/nutrition-mind/issues/1
