@@ -9,6 +9,7 @@
 import os
 import json
 import psycopg
+import requests
 from psycopg.rows import dict_row
 from fastmcp import FastMCP
 from starlette.applications import Starlette
@@ -30,16 +31,27 @@ def _query(sql: str, params: tuple = ()) -> list[dict]:
             return [dict(r) for r in cur.fetchall()]
 
 
+def _embed(query: str) -> list[float]:
+    ollama = os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    model = os.environ.get("EMBEDDING_MODEL", "qwen3-embedding:0.6b")
+    res = requests.post(f"{ollama}/api/embed", json={"model": model, "input": query}, timeout=120)
+    res.raise_for_status()
+    return res.json()["embeddings"][0]
+
+
 @mcp.tool
 def search_legal_provisions(query: str, law_name: str | None = None, top_k: int = 5) -> str:
-    """법령 조문 검색. 임베딩 연결 전까지는 키워드 ILIKE 매칭으로 응답합니다(Task #4에서 pgvector 검색으로 교체)."""
+    """법령 조문 검색(pgvector 벡터 유사도, qwen3-embedding:0.6b)."""
+    vec = _embed(query)
     rows = _query(
-        """SELECT law_name, law_type, article_no, article_title, content
+        """SELECT law_name, law_type, article_no, article_title, content,
+                  1 - (embedding <=> %s::vector) AS score
            FROM legal_provisions
-           WHERE (%s IS NULL OR law_name = %s)
-             AND (content ILIKE '%%' || %s || '%%' OR article_title ILIKE '%%' || %s || '%%')
+           WHERE embedding IS NOT NULL
+             AND (%s::text IS NULL OR law_name = %s::text)
+           ORDER BY embedding <=> %s::vector
            LIMIT %s""",
-        (law_name, law_name, query, query, max(1, min(top_k, 20))),
+        (vec, law_name, law_name, vec, max(1, min(top_k, 20))),
     )
     return json.dumps({"query": query, "results": rows}, ensure_ascii=False, default=str)
 

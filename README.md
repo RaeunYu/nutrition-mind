@@ -85,9 +85,9 @@ MCP 도구 4종: `search_legal_provisions`, `get_functional_ingredient`, `get_pr
 
 - [x] #2 프로젝트 골격 및 Docker Compose 인프라 구성
 - [ ] #3 국가법령정보센터 법령 수집 및 legal_provisions 스키마 저장
-- [ ] #4 법령 RAG 파이프라인 및 LangGraph 6단계 노드 구현
+- [x] #4 법령 RAG 파이프라인 및 LangGraph 6단계 노드 구현 (359조문 임베딩·pgvector 검색·6단계 그래프 동작) — RAG 평가지표 스크립트는 #8에서
 - [ ] #5 식약처 기능성 정보 구조화 조회 및 total_count 증분 갱신
-- [ ] #6 FastMCP 도구 노출 및 토큰 기반 인증 구현 (도구 스텁 완료, DB 연동은 #5 이후)
+- [x] #6 FastMCP 도구 노출 및 토큰 기반 인증 구현 (법령검색은 pgvector 벡터 검색 연동 완료)
 - [ ] #7 웹 데모: JWT 로그인·고객:성분 시딩·챗봇 (로그인/챗봇 스텁 완료)
 - [ ] #8 RAG 평가 지표(Recall@k·MRR) 및 한국어 문서화 완성
 
