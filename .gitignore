@@ -22,3 +22,14 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
+
+# prepared context prompt
+project-background-context.md
+
+# ooo run: 구현 산출물
+node_modules/
+.next/
+dist/
+__pycache__/
+.venv/
+.env

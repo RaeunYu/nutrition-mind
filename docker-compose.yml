@@ -1,0 +1,53 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nutrition}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nutrition_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-nutrition_mind}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nutrition} -d ${POSTGRES_DB:-nutrition_mind}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nutrition}:${POSTGRES_PASSWORD:-nutrition_dev_pw}@db:5432/${POSTGRES_DB:-nutrition_mind}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
+      DEMO_USER_EMAIL: ${DEMO_USER_EMAIL:-demo@example.com}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-demo1234}
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-http://localhost:3001}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  mcp:
+    build: ./mcp-server
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nutrition}:${POSTGRES_PASSWORD:-nutrition_dev_pw}@db:5432/${POSTGRES_DB:-nutrition_mind}
+      MCP_TOKEN: ${MCP_TOKEN:-dev-mcp-token-change-me}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
