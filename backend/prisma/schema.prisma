@@ -1,0 +1,101 @@
+// Prisma v7 스키마 — 기존 db/init/01_schema.sql에서 인트로스펙션하여 작성.
+// v8 마이그레이션 계획은 prisma/V8_MIGRATION_NOTE.md 참고.
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+/// 법령 조문 (조문 1개 = 청크 1개)
+/// law_type: 'law' | 'enforcement_decree' | 'enforcement_rule' | 'administrative_rule' | 'referenced_external'
+/// (DB에는 CHECK 제약으로 존재 — Prisma는 String으로 매핑)
+model LegalProvision {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lawName           String   @map("law_name")
+  lawType           String   @map("law_type")
+  articleNo         String   @map("article_no")
+  articleTitle      String?  @map("article_title")
+  content           String
+  promulgationDate  DateTime? @map("promulgation_date") @db.Date
+  effectiveDate     DateTime? @map("effective_date") @db.Date
+  /// qwen3-embedding:0.6b (dim=1024) — Prisma 미지원 타입, 원시 SQL로만 기록/조회
+  embedding         Unsupported("vector(1024)")?
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  referencesFrom ProvisionReference[] @relation("ProvisionReference_from")
+  referencesTo   ProvisionReference[] @relation("ProvisionReference_to")
+
+  @@unique([lawName, articleNo])
+  @@index([lawName], map: "idx_legal_provisions_law")
+  @@map("legal_provisions")
+}
+
+/// 조문 참조 관계 (위임/인용 엣지)
+/// reference_type: 'delegates_to' | 'cites'
+model ProvisionReference {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fromId     String         @map("from_provision_id") @db.Uuid
+  toId       String         @map("to_provision_id") @db.Uuid
+  referenceType String      @map("reference_type")
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  fromProvision LegalProvision @relation("ProvisionReference_from", fields: [fromId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  toProvision   LegalProvision @relation("ProvisionReference_to", fields: [toId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([fromId, toId, referenceType])
+  @@map("provision_references")
+}
+
+/// 식약처 원시 데이터 (구조화 조회 소스)
+model FoodsafetyRow {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiCode   String   @map("api_code")
+  payload   Json
+  fetchedAt DateTime @default(now()) @map("fetched_at") @db.Timestamptz(6)
+
+  @@index([apiCode], map: "idx_foodsafety_rows_api")
+  @@map("foodsafety_rows")
+}
+
+/// 증분 감지 기준 (total_count 기반)
+model SyncState {
+  apiCode   String   @id @map("api_code")
+  totalCount BigInt  @default(0) @map("total_count")
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("sync_state")
+}
+
+/// 데모 사용자 (JWT 로그인)
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("users")
+}
+
+/// 고객
+model Customer {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String   @unique
+  ingredients   CustomerIngredient[]
+
+  @@map("customers")
+}
+
+/// 고객:성분 1:N
+model CustomerIngredient {
+  customerId     String @map("customer_id") @db.Uuid
+  ingredientName String @map("ingredient_name")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([customerId, ingredientName])
+  @@map("customer_ingredients")
+}

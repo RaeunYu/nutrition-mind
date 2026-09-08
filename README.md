@@ -11,7 +11,7 @@
 | 서비스 | 포트 | 설명 |
 |---|---|---|
 | `frontend` (Next.js) | 3000 | JWT 로그인 + 최소 기능 챗봇 데모 |
-| `backend` (NestJS) | 3001 | 인증·챗 API (LangGraph 6단계 파이프라인은 Task #4에서 연결) |
+| `backend` (NestJS + **Prisma v7**) | 3001 | 인증·챗 API, ORM: Prisma v7 (`prisma-client` 제너레이터 + driver adapter). LangGraph 6단계 파이프라인은 Task #4에서 연결 |
 | `mcp` (Python FastMCP) | 8000 | MCP 도구 4종 + 토큰 기반 간단 인증 |
 | `db` (PostgreSQL + pgvector) | 5432 | legal_provisions / provision_references / 식약처 데이터 |
 
@@ -47,7 +47,20 @@ openssl rand -hex 32   # 출력값을 .env의 MCP_TOKEN에 붙여넣기
 ollama pull qwen3-embedding:0.6b
 ```
 
-### 4) 실행
+### 4) DB 마이그레이션/시딩 (Prisma)
+
+```bash
+cd backend
+npx prisma generate        # 클라이언트 생성
+npx prisma db seed         # 데모 시딩(멱등) — 고객:성분 1:N, 데모 사용자
+# 대용량 식약처 CSV는 Prisma 시딩이 아닌 전용 스크립트 사용:
+# ../ingest/load_foodsafety_csv.py (46,000건×2 — 효율상 Python 유지)
+```
+
+> Prisma는 **v7.10.0 고정**. v8은 RC 상태로 불확실성이 있어 고정했으며, 추후 마이그레이션 절차는
+> [`backend/prisma/V8_MIGRATION_NOTE.md`](./backend/prisma/V8_MIGRATION_NOTE.md)에 기록해 두었습니다.
+
+### 5) 실행
 
 ```bash
 docker compose up -d --build

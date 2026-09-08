@@ -4,9 +4,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { HealthController } from './health.controller';
 import { AuthController } from './auth.controller';
 import { ChatController } from './chat.controller';
+import { PrismaModule } from './prisma.module';
 
 @Module({
   imports: [
+    PrismaModule,
     ConfigModule.forRoot({ isGlobal: true }),
     JwtModule.register({
       global: true,
