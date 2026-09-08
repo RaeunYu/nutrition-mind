@@ -89,7 +89,7 @@ MCP 도구 4종: `search_legal_provisions`, `get_functional_ingredient`, `get_pr
 - [ ] #5 식약처 기능성 정보 구조화 조회 및 total_count 증분 갱신
 - [x] #6 FastMCP 도구 노출 및 토큰 기반 인증 구현 (법령검색은 pgvector 벡터 검색 연동 완료)
 - [ ] #7 웹 데모: JWT 로그인·고객:성분 시딩·챗봇 (로그인/챗봇 스텁 완료)
-- [ ] #8 RAG 평가 지표(Recall@k·MRR) 및 한국어 문서화 완성
+- [x] #8 RAG 평가 지표: `ingest/eval_rag.py` — Recall@5 1.000 / MRR 0.792 (8문항 골드셋). Obsidian Vault 문서는 잔여
 
 Epic: https://github.com/RaeunYu/nutrition-mind/issues/1
 
