@@ -23,6 +23,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
       DEMO_USER_EMAIL: ${DEMO_USER_EMAIL:-demo@example.com}
       DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-demo1234}
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:0.6b}
     ports:
       - "3001:3001"
     depends_on:

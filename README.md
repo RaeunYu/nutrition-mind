@@ -26,6 +26,14 @@ cp .env.example .env
 # .env 파일을 직접 편집해 LLM API 키를 입력하세요.
 ```
 
+**LLM 합성(선택사항)** — 챗봇의 자연어 답변 생성용. 3개 플랫폼 지원:
+- `LLM_PROVIDER=openai` (기본): OpenAI GPT — `LLM_API_KEY` 필수
+- `LLM_PROVIDER=anthropic`: Claude — `LLM_API_KEY` 필수
+- `LLM_PROVIDER=ollama`: 로컬 Ollama — 키 불필요 (예: `LLM_MODEL=glm-5.3-flash:cloud`)
+
+`LLM_API_KEY`가 비어있거나 호출 실패 시, 챗봇은 **근거 조문 나열 모드로 자동 폴백**하며
+응답의 `notices`에 사유를 표시합니다 (임베딩은 항상 로컬 Ollama 사용).
+
 bash/zsh 명령어로 직접 추가하는 예시:
 
 ```bash
