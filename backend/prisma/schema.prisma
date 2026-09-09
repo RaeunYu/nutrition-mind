@@ -103,11 +103,19 @@ model User {
   @@map("users")
 }
 
-/// 고객
+/// 고객 — 개인식별 필드는 envelope encryption(ADR-0002, 이슈 #13).
+/// key_slot = 마스터 키(KEK)로 wrap한 고객별 데이터 키(DEK), *_enc = DEK로 암호화한 필드 암호문.
+/// 저장 형식: v1:<nonce_b64>:<ciphertext+tag_b64> — 암호화 서비스(crypto.service)가 파싱.
+/// 암호문은 nonce마다 달라지므로 DB UNIQUE·DB 정렬·DB 검색이 불가 → 서비스 레이어(복호화 비교)가 담당.
+/// trgm/UNIQUE 같은 DB 인덱스는 암호문에 무의미 — 선언하지 않음.
 model Customer {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String   @unique
-  ingredients   CustomerIngredient[]
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  keySlot     String   @map("key_slot")
+  nameEnc     String   @map("name_enc")
+  phoneEnc    String?  @map("phone_enc")
+  emailEnc    String?  @map("email_enc")
+  memoEnc     String?  @map("memo_enc")
+  ingredients CustomerIngredient[]
 
   @@map("customers")
 }

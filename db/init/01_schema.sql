@@ -77,9 +77,18 @@ CREATE TABLE users (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
+-- 고객 — 개인식별 필드는 envelope encryption(ADR-0002, 이슈 #13):
+--   key_slot : 고객별 데이터 키(DEK)를 마스터 키(KEK)로 AES-256-GCM wrap한 값
+--              저장 형식 v1:<nonce_b64>:<ciphertext+tag_b64>
+--   *_enc    : DEK로 암호화한 필드 암호문 — 동일 평문도 nonce마다 다르게 저장됨
+--   평문 개인식별 필드는 저장하지 않는다. 이름 검색·정렬·중복검사는 서비스 레이어(복호화 비교)가 담당.
 CREATE TABLE customers (
-  id   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL UNIQUE
+  id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  key_slot  text NOT NULL,
+  name_enc  text NOT NULL,
+  phone_enc text,
+  email_enc text,
+  memo_enc  text
 );
 
 CREATE TABLE customer_ingredients (

@@ -26,6 +26,8 @@ services:
       LLM_MODEL: ${LLM_MODEL:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+      # 고객 개인정보 암호화 마스터 키(KEK) — 이슈 #13 (값은 .env의 MASTER_KEY에서만 관리)
+      MASTER_KEY: ${MASTER_KEY:-}
     ports:
       - "3001:3001"
     depends_on:

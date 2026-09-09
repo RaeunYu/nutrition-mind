@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import WorkspaceHeader from './_components/workspace-header';
 import { BACKEND, ROLE_HOME, getAuth, type Auth } from '../lib/auth';
 
@@ -50,6 +51,9 @@ export default function Page() {
     <div>
       <WorkspaceHeader title="상담 워크스페이스" auth={auth} />
       <main style={{ maxWidth: 720, margin: '24px auto', padding: 24, background: '#fff', borderRadius: 12 }}>
+        <nav style={{ marginBottom: 12, fontSize: 13 }}>
+          <Link href="/customers" style={{ color: '#1d4ed8' }}>👥 고객 관리(목록·등록)</Link>
+        </nav>
         <h1 style={{ fontSize: 20, marginTop: 0 }}>🧪 상담 보조 챗봇</h1>
         <p style={{ color: '#666' }}>
           건강기능식품 법령·기능성 정보 조회 (RAG·MCP) — 고객 상담 중 궁금한 조항을 질의하세요.
