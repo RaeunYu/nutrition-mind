@@ -39,6 +39,19 @@ CREATE TABLE foodsafety_rows (
 );
 CREATE INDEX idx_foodsafety_rows_api ON foodsafety_rows (api_code);
 
+-- 품목제조신고류(C003·I0030) 정규화 칼럼 — payload에서 추출·백필 (이슈 #12)
+ALTER TABLE foodsafety_rows
+  ADD COLUMN product_name       text,   -- PRDLST_NM (제품명)
+  ADD COLUMN raw_material_name  text,   -- RAWMTRL_NM (원료명)
+  ADD COLUMN functionality_text text,   -- PRIMARY_FNCLTY (기능성 문구)
+  ADD COLUMN report_no          text;   -- PRDLST_REPORT_NO (신고번호)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- ILIKE 부분일치 검색용 trgm GIN 인덱스
+CREATE INDEX idx_foodsafety_rows_product_name ON foodsafety_rows USING gin (product_name gin_trgm_ops);
+CREATE INDEX idx_foodsafety_rows_raw_material ON foodsafety_rows USING gin (raw_material_name gin_trgm_ops);
+-- 신고번호 연결 조회(#15 섭취 제품 연결)용
+CREATE INDEX idx_foodsafety_rows_report_no    ON foodsafety_rows (report_no);
+
 CREATE TABLE sync_state (
   api_code    text PRIMARY KEY,
   total_count bigint NOT NULL DEFAULT 0,   -- 증분 감지 기준값

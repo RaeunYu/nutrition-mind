@@ -51,13 +51,24 @@ model ProvisionReference {
 }
 
 /// 식약처 원시 데이터 (구조화 조회 소스)
+/// 품목제조신고류(apiCode: C003·I0030)는 payload에서 정규화 칼럼으로 추출·백필됨 (이슈 #12).
+/// 검색 인덱스(pg_trgm GIN)는 Prisma 미지원 ops — 수동 SQL로만 관리 (db/init/01_schema.sql 참고).
 model FoodsafetyRow {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   apiCode   String   @map("api_code")
   payload   Json
   fetchedAt DateTime @default(now()) @map("fetched_at") @db.Timestamptz(6)
+  /// 제품명 (PRDLST_NM)
+  productName       String?  @map("product_name")
+  /// 원료명 (RAWMTRL_NM)
+  rawMaterialName   String?  @map("raw_material_name")
+  /// 기능성 문구 (PRIMARY_FNCLTY)
+  functionalityText String?  @map("functionality_text")
+  /// 신고번호 (PRDLST_REPORT_NO)
+  reportNo          String?  @map("report_no")
 
   @@index([apiCode], map: "idx_foodsafety_rows_api")
+  @@index([reportNo], map: "idx_foodsafety_rows_report_no")
   @@map("foodsafety_rows")
 }
 

@@ -5,8 +5,10 @@ import { HealthController } from './health.controller';
 import { AuthController } from './auth.controller';
 import { ChatController } from './chat.controller';
 import { CustomersController } from './customers.controller';
+import { ProductsController } from './products.controller';
 import { PrismaModule } from './prisma.module';
 import { LlmService } from './llm.service';
+import { ProductsService } from './products.service';
 
 @Module({
   imports: [
@@ -18,7 +20,7 @@ import { LlmService } from './llm.service';
       signOptions: { expiresIn: '1h' },
     }),
   ],
-  controllers: [HealthController, AuthController, ChatController, CustomersController],
-  providers: [LlmService],
+  controllers: [HealthController, AuthController, ChatController, CustomersController, ProductsController],
+  providers: [LlmService, ProductsService],
 })
 export class AppModule {}
