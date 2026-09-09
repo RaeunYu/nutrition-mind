@@ -29,7 +29,7 @@ export default function Page() {
     if (!token) { alert('먼저 로그인하세요.'); return; }
     setBusy(true); setAnswer('');
     try {
-      const res = await fetch(`${BACKEND}/chat`, {
+      const res = await fetch(`${BACKEND}/chat/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ question }),
