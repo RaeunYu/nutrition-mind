@@ -21,8 +21,6 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nutrition}:${POSTGRES_PASSWORD:-nutrition_dev_pw}@db:5432/${POSTGRES_DB:-nutrition_mind}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
-      DEMO_USER_EMAIL: ${DEMO_USER_EMAIL:-demo@example.com}
-      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-demo1234}
       LLM_PROVIDER: ${LLM_PROVIDER:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}

@@ -8,7 +8,8 @@
     "start:dev": "ts-node src/main.ts",
     "prisma:generate": "prisma generate",
     "prisma:seed": "prisma db seed",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "test:rbac": "node test/rbac.test.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.1",
@@ -18,6 +19,7 @@
     "@nestjs/platform-express": "^10.4.1",
     "@prisma/client": "^7.10.0",
     "@types/pg": "^8.23.1",
+    "bcryptjs": "^2.4.3",
     "dotenv": "^17.4.2",
     "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",

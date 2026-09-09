@@ -70,11 +70,23 @@ model SyncState {
   @@map("sync_state")
 }
 
+/// 역할 (간소화 RBAC — ADR-0001: Role 테이블 + 가드·데코레이터)
+/// role_id: 'admin' | 'consultant' | 'marketing' (DB CHECK 제약으로 존재)
+model Role {
+  roleId String @id @map("role_id")
+  label  String
+  users  User[]
+
+  @@map("roles")
+}
+
 /// 데모 사용자 (JWT 로그인)
 model User {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email        String   @unique
   passwordHash String   @map("password_hash")
+  roleId       String   @map("role_id")
+  role         Role     @relation(fields: [roleId], references: [roleId])
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("users")

@@ -60,7 +60,7 @@ ollama pull qwen3-embedding:0.6b
 ```bash
 cd backend
 npx prisma generate        # 클라이언트 생성
-npx prisma db seed         # 데모 시딩(멱등) — 고객:성분 1:N, 데모 사용자
+npx prisma db seed         # 데모 시딩(멱등) — 역할 3종, 데모 계정, 고객:성분 1:N
 # 대용량 식약처 CSV는 Prisma 시딩이 아닌 전용 스크립트 사용:
 # ../ingest/load_foodsafety_csv.py (46,000건×2 — 효율상 Python 유지)
 ```
@@ -74,9 +74,22 @@ npx prisma db seed         # 데모 시딩(멱등) — 고객:성분 1:N, 데모
 docker compose up -d --build
 ```
 
-- 웹 데모: http://localhost:3000 (기본 계정: `demo@example.com` / `demo1234`)
+- 웹 데모: http://localhost:3000 (역할별 데모 계정은 아래 표 참조)
 - 백엔드 헬스체크: http://localhost:3001/health
 - MCP 헬스체크: http://localhost:8000/health
+
+### 👤 데모 계정 (역할별 로그인)
+
+비밀번호는 공개 데모 값입니다. 로그인하면 역할에 맞는 화면으로 분기됩니다 (이슈 #11 — 간소화 RBAC).
+
+| 계정 | 비밀번호 | 역할 | 로그인 후 화면 |
+|---|---|---|---|
+| `consultant@example.com` | `consult1234` | 영업·상담 담당자 | 상담 워크스페이스 홈(챗봇) `/` |
+| `marketing@example.com` | `marketing1234` | 제품기획·마케팅 담당자 | 마케팅 화면 골격 `/marketing` |
+| `admin@example.com` | `admin1234` | 총관리자 | 관리 화면 골격 `/admin` |
+| `demo@example.com` | `demo1234` | 영업·상담 담당자 (구 데모 계정, 하위호환) | 상담 워크스페이스 홈(챗봇) `/` |
+
+> 고객 API(`/customers`)는 영업·상담 담당자(및 운영 확인용 총관리자)만 접근할 수 있고, 마케팅 담당자는 가드가 거부(403)합니다 (ADR-0001).
 
 ## 🔑 MCP 토큰 사용법
 

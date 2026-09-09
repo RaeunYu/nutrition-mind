@@ -45,11 +45,22 @@ CREATE TABLE sync_state (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- ── 웹 데모: JWT 로그인 + 고객:성분 1:N 시딩 ─────────────────
+-- ── 웹 데모: JWT 로그인 + 역할·고객:성분 1:N 시딩 ─────────────
+-- 간소화 RBAC (ADR-0001): Role 테이블 + 가드·데코레이터
+CREATE TABLE roles (
+  role_id text PRIMARY KEY CHECK (role_id IN ('admin','consultant','marketing')),
+  label   text NOT NULL                        -- 한국어 역할명 (CONTEXT.md 용어)
+);
+INSERT INTO roles (role_id, label) VALUES
+  ('admin',      '총관리자'),
+  ('consultant', '영업·상담 담당자'),
+  ('marketing',  '제품기획·마케팅 담당자');
+
 CREATE TABLE users (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email         text NOT NULL UNIQUE,
   password_hash text NOT NULL,
+  role_id       text NOT NULL REFERENCES roles(role_id),
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
