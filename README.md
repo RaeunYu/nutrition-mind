@@ -108,6 +108,28 @@ Epic: https://github.com/RaeunYu/nutrition-mind/issues/1
 - 요약: 프로젝트 Vault를 만들지 않고 `~/ObsidianVault/Projects/nutrition-mind/`에 symlink로 연결.
   Raw(원본) / Distilled(요약) / Decisions(ADR) 3계층 유지. QMD는 Raw가 500개 이상 쌓인 후 도입 검토(현 단계 미도입).
 
+
+## 이 프로젝트를 만든 방식 — AI 에이전트 협업
+
+이 저장소의 코드와 문서는 **Codex CLI**(에이전트 런타임, [@openai/codex](https://github.com/openai/codex)) 위에서 **Z.ai GLM(`glm-5.3-flash:cloud`)** 모델 에이전트와 사람의 협업으로 작성되었습니다. 사람은 요구사항 정의, 사용 기술스택 확정, 제반 인프라에 대한 스펙 조사(행정규칙 조회 경로, API 응답 스키마·응답 구조 등), 설계 피드백, 모든 변경사항에 대하여 확정 전 리뷰를 수행했고, 에이전트는 인터뷰 정리·설계·구현·문서화·이슈 검증을 담당했습니다.
+
+작업 흐름은 **[Ouroboros](https://github.com/Q00/ouroboros)** 스펙 워크플로우를 따릅니다:
+
+| 단계 | 이 프로젝트에서 한 일 |
+|---|---|
+| `ooo setup` + 스펙 인터뷰 | 배경 컨텍스트(`project-background-context.md`)를 반영해 미확정 사항만 질의 — 법령 범위, 기술 스택, LLM 운영 방식 등 확정 |
+| `ooo seed` | 인터뷰 결과를 `seed.yaml`(골/제약/수용기준 13건)으로 산출 |
+| `ooo publish` | Seed를 GitHub **Epic 1건 + Task 7건**으로 발행해 작업 추적 |
+| `ooo run` | Task 단위 구현: 골격 → 법령 수집 → 식약처 적재 → 임베딩/RAG → 웹 데모 → 평가 |
+| `ooo evaluate` | Task별 검증 결과를 이슈 코멘트로 기록 후 종료 처리 |
+
+실제 개발 과정에서의 특이점:
+
+- **API 실측 기반 구현**: 국가법령정보센터 본문 API의 `efYd` 필수 조건, 행정규칙 `target=admrul` 경로, 응답의 str/list 혼재 타입 등은 문서가 아닌 **호출 실측으로 발견**해 `project-background-context.md`에 기록했습니다.
+- **도구 제약 → 수동 구현**: Ouroboros MCP 엔진이 세션 환경에서 호출 불가(CLI 없음)였기에, Seed 스펙·이슈를 기준으로 에이전트가 직접 구현하고 각 Task를 GitHub 이슈로 검증·종료했습니다.
+- **폴백 우선 설계**: LLM 합성은 키/호출 실패 시 근거 나열로 폴백하며 사유를 응답에 표시 — 데모가 환경 의존 없이 동작하도록 함.
+- **정량 검증**: 법령 398조문·식약처 93,273건 적재, RAG 평가 Recall@5 1.000 / MRR 0.792 (8문항 골드셋) — 구현 완료 판정을 수치로 남김.
+
 ## 📚 참고
 
 - ⚠️ 식품안전나라 openapi는 **KST 09:00~19:00 호출 차단** (ERROR-503). 증분 갱신 잡은 19시 이후 실행. 상세 응답 코드는 [`foodsafetykorea_schema/api_response_schema_doc.md`](./foodsafetykorea_schema/api_response_schema_doc.md) 참고.
