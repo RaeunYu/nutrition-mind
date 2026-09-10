@@ -158,4 +158,48 @@ export class LlmService {
     const data = (await res.json()) as { message?: { content: string } };
     return data.message?.content ?? '';
   }
+
+  /**
+   * 표시·광고 문구 판정 (이슈 #19) — 근거 조문에 근거해서 허용/주의/금지 판정.
+   * 근거에 근거 없는 판정은 'undetermined'(사유 포함)로 강제한다(출처 없는 생성 금지).
+   * LLM 응답은 JSON으로 강제하며, 파싱 실패·형식 이탈은 undetermined로 안전 폴백한다.
+   */
+  async judgeAdvertisement(
+    text: string,
+    sources: Array<{ law_name: string; law_type: string; article_no: string; article_title?: string | null; content: string }>,
+  ): Promise<{ ok: boolean; verdict?: 'allowed' | 'caution' | 'prohibited' | 'undetermined'; reason?: string }> {
+    const status = this.check();
+    if (!status.active) {
+      return { ok: false };
+    }
+    const context = sources
+      .map((a, i) => {
+        const title = a.article_title ? ` (${a.article_title})` : '';
+        return `[${i + 1}] ${a.law_name} ${a.article_no}${title}\n${a.content.slice(0, 500)}`;
+      })
+      .join('\n\n');
+    const system =
+      '당신은 건강기능식품 표시·광고 사전검증 보조 어시스턴트입니다. ' +
+      '제공된 근거 조문에 근거해서만 판정하고, 근거에 없는 표준은 만들지 마세요. ' +
+      '판정 기준: 질병 치료·예방 효과 표시나 허위·과장 문구는 금지(prohibited), ' +
+      '기능성 범위를 넘거나 각주·주의 문구가 필요한 표기는 주의(caution), ' +
+      '근거 조문상 문제 없는 기능성 문구는 허용(allowed). ' +
+      '근거 조문으로 판정할 수 없으면 undetermined와 사유를 말하세요. ' +
+      '반드시 아래 JSON만 출력하세요(다른 텍스트 금지): {"verdict":"allowed|caution|prohibited|undetermined","reason":"한국어 사유"}';
+    const user = `판정할 문구: ${text}\n\n근거 조문:\n${context}`;
+    try {
+      const raw = await this.call(system, user);
+      const jsonText = raw.slice(Math.max(raw.indexOf('{'), 0), raw.lastIndexOf('}') + 1);
+      const parsed = JSON.parse(jsonText) as { verdict?: string; reason?: string };
+      const allowed = ['allowed', 'caution', 'prohibited', 'undetermined'];
+      if (!parsed.verdict || !['allowed', 'caution', 'prohibited', 'undetermined'].includes(parsed.verdict)) {
+        return { ok: false, reason: 'LLM 판정 형식이 유효하지 않습니다.' };
+      }
+      return { ok: true, verdict: parsed.verdict as 'allowed' | 'caution' | 'prohibited' | 'undetermined', reason: parsed.reason ?? '' };
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      this.logger.warn(`문구 판정 실패 (${status.provider}/${status.model}): ${msg}`);
+      return { ok: false, reason: msg };
+    }
+  }
 }

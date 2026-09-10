@@ -58,12 +58,15 @@ async function main() {
     const list = await api('GET', '/customers', consultant);
     const customerId = list.body?.[0]?.id;
     check('고객 목록 조회(테스트 대상 확보)', Boolean(customerId), `id=${customerId}`);
-    const before = await api('GET', '/admin/access-logs', admin);
-    const beforeCount = before.body?.items?.length ?? 0;
+    const before = await api('GET', '/admin/access-logs?limit=200', admin);
+    const beforeItems = before.body?.items ?? [];
+    const beforeCount = beforeItems.filter((l) => l.actorEmail === CONSULTANT.email && l.customerId === customerId).length;
 
     await api('GET', `/customers/${customerId}`, consultant);
-    const after = await api('GET', '/admin/access-logs', admin);
-    check('상세 접근 후 로그 증가', (after.body?.items?.length ?? 0) > beforeCount, `before=${beforeCount} after=${after.body?.items?.length}`);
+    const after = await api('GET', '/admin/access-logs?limit=200', admin);
+    const afterItems = after.body?.items ?? [];
+    const afterCount = afterItems.filter((l) => l.actorEmail === CONSULTANT.email && l.customerId === customerId).length;
+    check('상세 접근 후 로그 증가', afterCount > beforeCount, `before=${beforeCount} after=${afterCount}`);
     const mine = after.body?.items?.find(
       (log) => log.actorEmail === CONSULTANT.email && log.customerId === customerId,
     );
