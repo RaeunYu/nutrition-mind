@@ -172,3 +172,8 @@ UPDATE foodsafety_rows
 SET raw_material_name = payload->>'RAWMTRL_NM', functionality_text = payload->>'PRIMARY_FNCLTY', report_no = payload->>'HF_FNCLTY_MTRAL_RCOGN_NO', intake_note = TRIM(BOTH FROM COALESCE(payload->>'DAY_INTK_LOWLIMIT','') || CASE WHEN COALESCE(payload->>'DAY_INTK_LOWLIMIT','') <> '' AND COALESCE(payload->>'IFTKN_ATNT_MATR_CN','') <> '' THEN ' / ' ELSE '' END || COALESCE(payload->>'IFTKN_ATNT_MATR_CN',''))
 WHERE api_code = 'I-0050';
 UPDATE foodsafety_rows SET intake_note = payload->>'NTK_MTHD' WHERE api_code IN ('C003','I0030') AND intake_note IS NULL;
+
+-- 이슈 #23 후속 — 추천 제안 근거 표시용 칼럼(성분명 스냅샷·매칭 키워드)
+ALTER TABLE product_recommendations ADD COLUMN ingredient_name text;
+ALTER TABLE product_recommendations ADD COLUMN evidence_keyword text;
+UPDATE product_recommendations pr SET ingredient_name = ing.name FROM ingredients ing WHERE ing.id = pr.ingredient_id;

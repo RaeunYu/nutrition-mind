@@ -397,18 +397,30 @@ export class CustomersController {
             reportNo: draft.reportNo,
             productName: draft.productName,
             rawMaterials: draft.rawMaterials,
+            ingredientName: draft.ingredientName,
+            evidenceKeyword: draft.evidenceKeyword,
             status: 'proposed',
           },
         });
         createdCount++;
         items.push({
-          id: row.id, ingredientName: draft.ingredientName, apiCode: draft.apiCode,
-          reportNo: draft.reportNo, productName: draft.productName,
-          evidenceKeyword: draft.evidenceKeyword, evidenceRawMaterial: draft.evidenceRawMaterial,
+          id: row.id, ingredientName: row.ingredientName, apiCode: row.apiCode,
+          reportNo: row.reportNo, productName: row.productName,
+          evidenceKeyword: row.evidenceKeyword, evidenceRawMaterial: draft.evidenceRawMaterial,
           status: row.status,
         });
       } catch (e) {
-        if ((e as { code?: string }).code === 'P2002') continue; // 이미 제안됨 — 멱등
+        if ((e as { code?: string }).code === 'P2002') {
+          // 이미 제안됨 — 멱등. 기존 행의 근거 칼럼(성분명·키워드)을 보강한다(구 데이터 백필).
+          await this.prisma.productRecommendation.updateMany({
+            where: {
+              customerId: id, ingredientId: draft.ingredientId,
+              apiCode: draft.apiCode, reportNo: draft.reportNo,
+            },
+            data: { ingredientName: draft.ingredientName, evidenceKeyword: draft.evidenceKeyword },
+          });
+          continue;
+        }
         throw e;
       }
     }
@@ -430,7 +442,8 @@ export class CustomersController {
     return {
       total: rows.length,
       items: rows.map((r) => ({
-        id: r.id, ingredientId: r.ingredientId, apiCode: r.apiCode, reportNo: r.reportNo,
+        id: r.id, ingredientName: r.ingredientName, evidenceKeyword: r.evidenceKeyword,
+        ingredientId: r.ingredientId, apiCode: r.apiCode, reportNo: r.reportNo,
         productName: r.productName, rawMaterials: r.rawMaterials,
         status: r.status, decidedAt: r.decidedAt,
       })),

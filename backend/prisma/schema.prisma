@@ -214,6 +214,8 @@ model ProductRecommendation {
   reportNo      String?    @map("report_no")
   productName   String     @map("product_name")
   rawMaterials  String?    @map("raw_materials")
+  ingredientName String    @map("ingredient_name")
+  evidenceKeyword String   @map("evidence_keyword")
   status        String     @default("proposed")
   decidedAt     DateTime?  @map("decided_at") @db.Timestamptz(6)
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
