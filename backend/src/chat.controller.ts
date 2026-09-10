@@ -53,8 +53,7 @@ export class ChatController {
         noticesPre.push('⚠️ 지정한 고객을 찾을 수 없어 일반 답변으로 처리합니다.');
       } else {
         await this.accessLog.record(req.user ?? {}, row.id).catch(() => undefined);
-        const dek = this.crypto.unwrapDek(row.keySlot);
-        customerName = this.crypto.decryptField(row.nameEnc, dek) ?? '';
+        customerName = row.name ?? '';
 
         const rules = await this.prisma.ingredient.findMany({ orderBy: { createdAt: 'asc' } });
         const ruleList: IngredientRule[] = rules.map((r) => ({ id: r.id, name: r.name, synonyms: r.synonyms, keywords: r.keywords }));

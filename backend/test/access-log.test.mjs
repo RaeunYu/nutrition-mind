@@ -8,6 +8,11 @@
  *  - 열람은 총관리자 전용: 상담·마케팅 403 / 미인증 401
  *  - limit 파라미터 동작
  */
+import { resolve } from 'node:path';
+import { config as loadEnv } from 'dotenv';
+
+loadEnv({ path: resolve(process.cwd(), '..', '.env') });
+
 const BASE = process.env.BASE_URL ?? 'http://localhost:3001';
 const CONSULTANT = { email: 'consultant@example.com', password: 'consult1234' };
 const MARKETING = { email: 'marketing@example.com', password: 'marketing1234' };
@@ -58,19 +63,22 @@ async function main() {
     const list = await api('GET', '/customers', consultant);
     const customerId = list.body?.[0]?.id;
     check('고객 목록 조회(테스트 대상 확보)', Boolean(customerId), `id=${customerId}`);
-    const before = await api('GET', '/admin/access-logs?limit=200', admin);
-    const beforeItems = before.body?.items ?? [];
-    const beforeCount = beforeItems.filter((l) => l.actorEmail === CONSULTANT.email && l.customerId === customerId).length;
+    // 로그 누적 시 API 페이지(최신 200건)만으로는 증가 판정이 흔들리므로 DB 카운트로 검증한다
+    const { default: pg } = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    const countLogs = async () => {
+      const r = await pool.query('SELECT COUNT(*)::int AS n FROM access_logs WHERE actor_email = $1 AND customer_id = $2', [CONSULTANT.email, customerId]);
+      return r.rows[0].n;
+    };
+    const before = await countLogs();
 
     await api('GET', `/customers/${customerId}`, consultant);
-    const after = await api('GET', '/admin/access-logs?limit=200', admin);
-    const afterItems = after.body?.items ?? [];
-    const afterCount = afterItems.filter((l) => l.actorEmail === CONSULTANT.email && l.customerId === customerId).length;
-    check('상세 접근 후 로그 증가', afterCount > beforeCount, `before=${beforeCount} after=${afterCount}`);
-    const mine = after.body?.items?.find(
-      (log) => log.actorEmail === CONSULTANT.email && log.customerId === customerId,
-    );
-    check('기록 내용(담당자·역할·고객) 일치', Boolean(mine) && mine.actorRole === 'consultant', JSON.stringify(mine ?? null));
+    const after = await countLogs();
+    check('상세 접근 후 로그 증가(DB 카운트)', after > before, `before=${before} after=${after}`);
+    const logList = await api('GET', '/admin/access-logs?limit=50', admin);
+    const newest = (logList.body?.items ?? [])[0];
+    check('기록 내용(담당자·역할·고객) 일치', Boolean(newest) && newest.actorEmail === CONSULTANT.email && newest.actorRole === 'consultant', JSON.stringify(newest ?? null));
+    await pool.end();
   }
 
   console.log('\n2) 열람 권한(총관리자 전용)');

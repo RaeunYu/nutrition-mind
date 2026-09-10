@@ -80,46 +80,46 @@ async function main() {
     check('시딩 고객 18명 이상 노출', listCount >= 18, `count=${listCount}`);
   }
 
-  console.log('\n2) 목록 마스킹(최소노출)');
+  console.log('\n2) 이름 평문·연락처 마스킹(이슈 #28 개정)');
   {
     const { body } = await api('GET', '/customers', consultant);
     const first = body[0];
-    check('이름 마스킹 형식(첫글자+**) ', /^[^\s]{1}\*\*$/.test(first.name), `name=${first.name}`);
+    check('이름 평문 표시(마스킹 제외 — 이슈 #28)', Boolean(first.name) && !first.name.includes('**'), `name=${first.name}`);
     const withPhone = body.find((c) => c.phone);
-    check('연락처 마스킹(뒤 4자리만)', withPhone === undefined || withPhone.phone === null || /^\*\*\*\*\d{4}$/.test(withPhone.phone),
+    check('연락처 마스킹(뒤 4자리만) 유지', withPhone === undefined || withPhone.phone === null || /^\*\*\*\*\d{4}$/.test(withPhone.phone),
       withPhone ? `phone=${withPhone.phone}` : '연락처 고객 없음');
     const plainLeak = JSON.stringify(body).includes('010-1000');
     check('목록에 원문 연락처 미노출', !plainLeak);
   }
 
-  console.log('\n3) 고객 생성(암호화 저장)');
+  console.log('\n3) 고객 생성(이름 평문·연락처 암호화)');
   {
     const preList = await api('GET', '/customers', consultant);
-    const preExists = preList.body.some((c) => c.name === '테**');
+    const preExists = preList.body.some((c) => c.name === TEST_CUSTOMER.name);
     let created = { status: 0, body: null };
     if (!preExists) {
       created = await api('POST', '/customers', consultant, TEST_CUSTOMER);
       check('등록 → 201', created.status === 201 || created.status === 200, `status=${created.status}`);
-      check('응답 이름 마스킹', created.body?.name === '테**', `name=${created.body?.name}`);
+      check('응답 이름 평문', created.body?.name === TEST_CUSTOMER.name, `name=${created.body?.name}`);
     } else {
       // 재실행 멱등: 이전 실행에서 생성한 테스트 고객이 있으면 존재 확인으로 대체
       check('등록(재실행) — 기존 테스트 고객 존재', true);
       check('응답 이름 마스킹(목록 기준)', true);
     }
     const duplicate = await api('POST', '/customers', consultant, TEST_CUSTOMER);
-    check('같은 이름 재등록 → 400(복호화 비교)', duplicate.status === 400, `status=${duplicate.status}`);
+    check('같은 이름 재등록 → 400(DB 조회)', duplicate.status === 400, `status=${duplicate.status}`);
     const list = await api('GET', '/customers', consultant);
-    const found = list.body.find((c) => c.name === '테**');
-    check('생성 후 목록 반영', Boolean(found), '마스킹 목록에 없음');
+    const found = list.body.find((c) => c.name === TEST_CUSTOMER.name);
+    check('생성 후 목록 반영(평문 이름)', Boolean(found), '평문 목록에 없음');
   }
 
   console.log('\n4) 상세 복호화 + 수정');
   {
     const list = await api('GET', '/customers', consultant);
-    const target = list.body.find((c) => c.name === '테**');
+    const target = list.body.find((c) => c.name === TEST_CUSTOMER.name);
     const detail = await api('GET', `/customers/${target.id}`, consultant);
-    check('상세 복호화(이름 전체)', detail.body?.name === TEST_CUSTOMER.name, `name=${detail.body?.name}`);
-    check('상세 복호화(연락처)', detail.body?.phone === TEST_CUSTOMER.phone, `phone=${detail.body?.phone}`);
+    check('상세 이름 평문', detail.body?.name === TEST_CUSTOMER.name, `name=${detail.body?.name}`);
+    check('상세 연락처 복호화', detail.body?.phone === TEST_CUSTOMER.phone, `phone=${detail.body?.phone}`);
     const updated = await api('PATCH', `/customers/${target.id}`, consultant, { memo: '통합테스트 메모 갱신' });
     check('수정 후 상세 반영', updated.status === 200 && updated.body?.memo === '통합테스트 메모 갱신' || updated.body?.memo === '수정 완료' || updated.body?.memo !== undefined,
       `status=${updated.status}`);
@@ -133,13 +133,14 @@ async function main() {
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
       const cols = await pool.query(
-        "SELECT COUNT(*)::int AS n FROM information_schema.columns WHERE table_name='customers' AND column_name IN ('name','phone','email','memo')",
+        // 이름은 평문 저장이 정책(이슈 #28 개정) — 연락처·이메일·메모만 평문 칼럼 부재를 검증한다
+        "SELECT COUNT(*)::int AS n FROM information_schema.columns WHERE table_name='customers' AND column_name IN ('phone','email','memo')",
       );
-      check('평문 개인식별 칼럼 잔존 0', cols.rows[0].n === 0, `count=${cols.rows[0].n}`);
+      check('평문 연락처·이메일·메모 칼럼 잔존 0', cols.rows[0].n === 0, `count=${cols.rows[0].n}`);
       const envelope = await pool.query(
-        "SELECT COUNT(*)::int AS bad FROM customers WHERE key_slot !~ '^v1:' OR name_enc !~ '^v1:'",
+        "SELECT COUNT(*)::int AS bad FROM customers WHERE key_slot !~ '^v1:'",
       );
-      check('key_slot·name_enc 전부 v1 봉인 형식', envelope.rows[0].bad === 0, `bad=${envelope.rows[0].bad}`);
+      check('key_slot 전부 v1 봉인 형식', envelope.rows[0].bad === 0, `bad=${envelope.rows[0].bad}`);
       const total = await pool.query('SELECT COUNT(*)::int AS n FROM customers');
       // 테스트 고객(테스트고객13)은 DELETE API가 없어 잔존하므로 하한 검증으로 수행(18 = 시딩 기준)
       check('시딩 고객 수 18명 이상', total.rows[0].n >= 18, `count=${total.rows[0].n}`);

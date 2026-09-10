@@ -97,23 +97,20 @@ const INGREDIENT_MASTER: Array<{ name: string; synonyms: string; keywords: strin
  * 고객 수가 적은 데모 범위에서만 사용하는 O(n) 탐색이다.
  */
 async function findCustomerByName(name: string): Promise<string | null> {
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; key_slot: string; name_enc: string }>>(
-    "SELECT id, key_slot, name_enc FROM customers",
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+    "SELECT id FROM customers WHERE name = $1",
+    name,
   );
-  for (const row of rows) {
-    const dek = crypto.unwrapDek(row.key_slot);
-    if (crypto.decryptField(row.name_enc, dek) === name) return row.id;
-  }
-  return null;
+  return rows[0]?.id ?? null;
 }
 
 /** 가명 고객 1명을 암호화해 생성한다(INSERT — id는 DB 기본값 gen_random_uuid()). */
-async function createEncryptedCustomer(c: { name: string; phone: string; email: string | null; memo: string | null }): Promise<void> {
+async function createCustomer(c: { name: string; phone: string; email: string | null; memo: string | null }): Promise<void> {
   const dek = crypto.generateDek();
   await prisma.$executeRawUnsafe(
-    `INSERT INTO customers (key_slot, name_enc, phone_enc, email_enc, memo_enc) VALUES ($1, $2, $3, $4, $5)`,
+    `INSERT INTO customers (key_slot, name, phone_enc, email_enc, memo_enc) VALUES ($1, $2, $3, $4, $5)`,
     crypto.wrapDek(dek),
-    crypto.encryptField(c.name, dek),
+    c.name,
     crypto.encryptField(c.phone, dek),
     crypto.encryptField(c.email, dek),
     crypto.encryptField(c.memo, dek),
@@ -173,7 +170,7 @@ async function main() {
     const customerId = await findCustomerByName(name);
     if (customerId === null) {
       // 방어적 경로(이론상 도달하지 않음) — 평문 없이 암호화 생성
-      await createEncryptedCustomer({ name, phone: "", email: null, memo: null });
+      await createCustomer({ name, phone: "", email: null, memo: null });
     }
     const id = (await findCustomerByName(name))!;
     for (const ingredientName of ingredients) {
@@ -191,7 +188,7 @@ async function main() {
   for (const c of DEMO_CUSTOMERS_PII) {
     const existing = await findCustomerByName(c.name);
     if (existing === null) {
-      await createEncryptedCustomer({ name: c.name, phone: c.phone, email: c.email, memo: c.memo });
+      await createCustomer({ name: c.name, phone: c.phone, email: c.email, memo: c.memo });
       createdNew++;
     } else {
       await fillMissingPii(existing, { phone: c.phone, email: c.email, memo: c.memo });

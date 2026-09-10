@@ -55,15 +55,28 @@ openssl rand -hex 32   # 출력값을 .env의 MCP_TOKEN에 붙여넣기
 ollama pull qwen3-embedding:0.6b
 ```
 
-### 4) DB 마이그레이션/시딩 (Prisma)
+### 4) DB 마이그레이션/시딩 (Prisma migrate — 이슈 #27 전환)
 
 ```bash
 cd backend
 npx prisma generate        # 클라이언트 생성
-npx prisma db seed         # 데모 시딩(멱등) — 역할 3종, 데모 계정, 고객:성분 1:N
+npx prisma migrate deploy  # 마이그레이션 적용(빈 DB에서 전체 스키마 재현 — pgvector·trgm 확장 포함)
+npx prisma db seed         # 데모 시딩(멱등) — 역할 3종, 데모 계정, 고객 18명, 성분 마스터 17종
 # 대용량 식약처 CSV는 Prisma 시딩이 아닌 전용 스크립트 사용:
 # ../ingest/load_foodsafety_csv.py (46,000건×2 — 효율상 Python 유지)
 ```
+
+**스키마 변경 절차**(`prisma/migrations/`로 관리 — 이슈 #27):
+
+```bash
+npx prisma migrate dev --name <변경명>   # ShadowDB로 드리프트 검사 후 적용(개발)
+npx prisma migrate deploy               # 적용(운영/데모)
+npx prisma migrate status               # 히스토리·드리프트 확인
+```
+
+- pg_trgm GIN·부분 유니크 인덱스 등 Prisma 미표현 DDL은 `20260910100000_extensions`·
+  `20260910120001_trgm_and_partial_indexes` 수동 마이그레이션에 포함되어 있다.
+- 빈 DB에서 `migrate deploy`가 전체 스키마(확장 포함)를 재현함을 샘플 DB로 검증했다(이슈 #27).
 
 > 사용자의 요청에 따라 Prisma는 **v7.10.0 고정**. v8은 RC 상태로 불확실성이 있어 고정했으며, 추후 마이그레이션 절차는
 > [`backend/prisma/V8_MIGRATION_NOTE.md`](./backend/prisma/V8_MIGRATION_NOTE.md)에 기록해 두었습니다.

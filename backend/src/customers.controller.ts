@@ -67,20 +67,18 @@ export class CustomersController {
     const items = rows
       .map((row) => {
         const dek = this.crypto.unwrapDek(row.keySlot);
-        const name = this.crypto.decryptField(row.nameEnc, dek) ?? '';
         const phone = this.crypto.decryptField(row.phoneEnc, dek);
         const email = this.crypto.decryptField(row.emailEnc, dek);
         return {
           id: row.id,
-          name: maskName(name),
+          name: row.name ?? '',
           phone: maskPhone(phone),
           email: maskEmail(email),
           ingredients: row.ingredients
             .map((ci) => ci.ingredientName)
             .sort((a, b) => a.localeCompare(b, 'ko')),
         };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+      });
     return items;
   }
 
@@ -98,13 +96,13 @@ export class CustomersController {
     const created = await this.prisma.customer.create({
       data: {
         keySlot: this.crypto.wrapDek(dek),
-        nameEnc: this.crypto.encryptField(input.name, dek)!,
+        name: input.name ?? null,
         phoneEnc: this.crypto.encryptField(input.phone, dek),
         emailEnc: this.crypto.encryptField(input.email, dek),
         memoEnc: this.crypto.encryptField(input.memo, dek),
       },
     });
-    return { id: created.id, name: maskName(input.name!), created: true };
+    return { id: created.id, name: created.name, created: true };
   }
 
   /** 고객 상세 — 개인식별 필드 복호화(상담 담당자 조회 용도). 접근 시 기록을 남긴다(ADR-0002, 이슈 #14). */
@@ -121,7 +119,7 @@ export class CustomersController {
     const interests = await this.listInterests(id);
     return {
       id: row.id,
-      name: this.crypto.decryptField(row.nameEnc, dek),
+      name: row.name,
       phone: this.crypto.decryptField(row.phoneEnc, dek),
       email: this.crypto.decryptField(row.emailEnc, dek),
       memo: this.crypto.decryptField(row.memoEnc, dek),
@@ -366,7 +364,7 @@ export class CustomersController {
       }>>(
         `SELECT api_code, report_no, product_name, raw_material_name
          FROM foodsafety_rows
-         WHERE raw_material_name ILIKE ANY($1::text[])
+         WHERE api_code = 'I0030' AND raw_material_name ILIKE ANY($1::text[])
          ORDER BY product_name
          LIMIT 8`,
         patterns,
@@ -505,7 +503,7 @@ export class CustomersController {
     // validateInput은 누락 키도 null로 정규화하므로, 원본 body에 키가 존재하는지로 구분한다.
     const provided = (body ?? {}) as Record<string, unknown>;
     const data: Record<string, string> = {};
-    if ('name' in provided && input.name !== undefined && input.name !== null) data.nameEnc = this.crypto.encryptField(input.name, dek)!;
+    if ('name' in provided) data.name = input.name ?? null;
     if ('phone' in provided) data.phoneEnc = this.crypto.encryptField(input.phone, dek);
     if ('email' in provided) data.emailEnc = this.crypto.encryptField(input.email, dek);
     if ('memo' in provided) data.memoEnc = this.crypto.encryptField(input.memo, dek);
@@ -566,20 +564,10 @@ export class CustomersController {
    * 같은 이름 고객 존재 여부 — 암호문은 nonce마다 달라 DB 비교 불가 → 전수 복호화 비교.
    * 데모 규모(n=고객 수)에서 허용 가능한 비용.
    */
+  /** 같은 이름 고객 존재 여부 — 이름은 평문 저장(이슈 #28)이므로 DB 조회로 검사한다. */
   private async hasNameDuplicate(name: string, excludeId?: string): Promise<boolean> {
-    const rows = await this.prisma.customer.findMany({
-      select: { id: true, keySlot: true, nameEnc: true },
-    });
-    for (const r of rows) {
-      if (excludeId && r.id === excludeId) continue;
-      try {
-        const dek = this.crypto.unwrapDek(r.keySlot);
-        if (this.crypto.decryptField(r.nameEnc, dek) === name) return true;
-      } catch {
-        // DEK/암호문 불량 행은 중복 비교 대상에서 제외(데이터 문제는 상세 조회 시 노출)
-      }
-    }
-    return false;
+    const rows = await this.prisma.customer.findMany({ where: { name }, select: { id: true } });
+    return rows.some((r) => r.id !== excludeId);
   }
 
   /** 입력 검증(최소수집) — name 필수(등록 시), 문자열·길이 제한, 공백 정리. */

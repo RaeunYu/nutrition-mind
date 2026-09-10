@@ -112,8 +112,9 @@ model User {
 /// trgm/UNIQUE 같은 DB 인덱스는 암호문에 무의미 — 선언하지 않음.
 model Customer {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// 고객 이름 — 식별 용이성 우선으로 평문 저장(이슈 #28 개정, ADR-0002 참조)
+  name        String?
   keySlot     String   @map("key_slot")
-  nameEnc     String   @map("name_enc")
   phoneEnc    String?  @map("phone_enc")
   emailEnc    String?  @map("email_enc")
   memoEnc     String?  @map("memo_enc")
