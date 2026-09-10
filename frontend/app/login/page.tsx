@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BACKEND, ROLE_HOME, getAuth, setAuth, type Auth, type Role } from '../../lib/auth';
+import { colors, pageContainer, btnPrimary, pageH1 } from '../../lib/design';
 
 const inputStyle: React.CSSProperties = {
   display: 'block', width: '100%', padding: 10, marginBottom: 10,
@@ -69,8 +70,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ maxWidth: 420, margin: '60px auto', padding: 24 }}>
-      <h1 style={{ fontSize: 22, marginBottom: 4 }}>Nutrition Mind 로그인</h1>
+    <main style={{ ...pageContainer, maxWidth: 440, margin: '60px auto' }}>
+      <h1 style={{ ...pageH1, fontSize: 22, marginBottom: 4 }}>Nutrition Mind 로그인</h1>
       <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
         건강기능식품 법령·기능성 정보 도구 — 담당자 계정으로 로그인하세요.
       </p>
@@ -96,7 +97,7 @@ export default function LoginPage() {
           disabled={busy}
           style={{
             width: '100%', padding: 12, cursor: 'pointer', border: 'none',
-            borderRadius: 8, background: '#1d4ed8', color: '#fff', fontSize: 15, fontWeight: 600,
+            borderRadius: 20, background: colors.ink, color: '#F3F0EE', fontSize: 15, fontWeight: 700,
           }}
         >
           {busy ? '로그인 중…' : '로그인'}

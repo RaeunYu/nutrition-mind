@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WorkspaceHeader from '../_components/workspace-header';
 import { BACKEND, getAuth, type Auth } from '../../lib/auth';
+import { pageContainer, btnPrimary } from '../../lib/design';
 
 const inputStyle: React.CSSProperties = { display: 'block', width: '100%', padding: 10, marginBottom: 8, boxSizing: 'border-box' };
 const btnStyle: React.CSSProperties = { padding: '10px 16px', cursor: 'pointer' };
@@ -68,7 +69,7 @@ export default function ChatPage() {
   return (
     <div>
       <WorkspaceHeader title="상담 챗봇" auth={auth} />
-      <main style={{ maxWidth: 720, margin: '24px auto', padding: 24, background: '#fff', borderRadius: 12 }}>
+      <main style={pageContainer}>
         <Link href="/" style={{ fontSize: 13, color: '#1d4ed8' }}>← 상담 워크스페이스로</Link>
         <h1 style={{ fontSize: 20, marginTop: 8 }}>🧪 상담 보조 챗봇</h1>
         <p style={{ color: '#666', fontSize: 13 }}>
@@ -95,7 +96,7 @@ export default function ChatPage() {
             rows={3}
             style={inputStyle}
           />
-          <button onClick={() => { void ask(); }} disabled={busy} style={btnStyle}>
+          <button onClick={() => { void ask(); }} disabled={busy} style={{ ...btnPrimary, padding: '10px 16px' }}>
             {busy ? '응답 생성 중…' : '질의하기'}
           </button>
           {notices.length > 0 && (

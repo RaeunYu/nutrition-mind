@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WorkspaceHeader from '../_components/workspace-header';
 import { BACKEND, ROLE_HOME, getAuth, type Auth } from '../../lib/auth';
+import { pageContainer, btnPrimary } from '../../lib/design';
 
 const inputStyle: React.CSSProperties = { display: 'block', width: '100%', padding: 10, marginBottom: 8, boxSizing: 'border-box' };
 const btnStyle: React.CSSProperties = { padding: '10px 16px', cursor: 'pointer' };
@@ -99,7 +100,7 @@ export default function MarketingPage() {
   return (
     <div>
       <WorkspaceHeader title="마케팅 워크스페이스" auth={auth} />
-      <main style={{ maxWidth: 760, margin: '24px auto', padding: 24, background: '#fff', borderRadius: 12 }}>
+      <main style={pageContainer}>
         <h1 style={{ fontSize: 20, marginTop: 0 }}>제품기획·마케팅 워크스페이스</h1>
         <p style={{ color: '#64748b', fontSize: 13 }}>
           표시·광고 문구 검증과 제품·원료 정보를 다루는 화면입니다. (고객 개인정보에는 접근하지 않습니다)
@@ -114,7 +115,7 @@ export default function MarketingPage() {
             rows={3}
             style={inputStyle}
           />
-          <button onClick={() => { void check(); }} disabled={busy} style={btnStyle}>
+          <button onClick={() => { void check(); }} disabled={busy} style={btnPrimary}>
             {busy ? '판정 중…' : '문구 검증'}
           </button>
           {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}

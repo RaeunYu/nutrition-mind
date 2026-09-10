@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import WorkspaceHeader from '../_components/workspace-header';
 import { BACKEND, ROLE_HOME, getAuth, type Auth } from '../../lib/auth';
+import { pageContainer, btnPrimary, sectionCard } from '../../lib/design';
 
 const cardStyle: React.CSSProperties = {
   border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, background: '#fff',
@@ -62,7 +63,7 @@ export default function AdminPage() {
   return (
     <div>
       <WorkspaceHeader title="관리 화면" auth={auth} />
-      <main style={{ maxWidth: 860, margin: '24px auto', padding: 24 }}>
+      <main style={{ ...pageContainer, background: 'transparent', border: 'none' }}>
         <h1 style={{ fontSize: 20, marginTop: 0 }}>총관리자 관리 화면</h1>
         <p style={{ color: '#64748b' }}>
           시스템 운영을 관리하는 화면입니다.
@@ -71,7 +72,7 @@ export default function AdminPage() {
         <section style={{ ...cardStyle, marginTop: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontSize: 16, margin: 0 }}>접근 로그 — 고객 개인정보 열람 기록</h2>
-            <button onClick={() => { void reload(); }} style={{ padding: '6px 12px', cursor: 'pointer', borderRadius: 6 }}>
+            <button onClick={() => { void reload(); }} style={{ padding: '6px 12px', cursor: 'pointer', borderRadius: 20, border: '1.5px solid #141413', background: '#FCFBFA' }}>
               새로고침
             </button>
           </div>

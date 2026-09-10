@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WorkspaceHeader from '../../_components/workspace-header';
 import { BACKEND, getAuth, type Auth } from '../../../lib/auth';
+import { pageContainer, btnPrimary } from '../../../lib/design';
 
 const inputStyle: React.CSSProperties = { display: 'block', width: '100%', padding: 10, marginBottom: 8, boxSizing: 'border-box' };
 const btnStyle: React.CSSProperties = { padding: '8px 14px', cursor: 'pointer' };
@@ -364,7 +365,7 @@ export default function CustomerDetailPage() {
   return (
     <div>
       <WorkspaceHeader title="고객 상세" auth={auth} />
-      <main style={{ maxWidth: 720, margin: '24px auto', padding: 24, background: '#fff', borderRadius: 12 }}>
+      <main style={pageContainer}>
         <Link href="/customers" style={{ fontSize: 13, color: '#1d4ed8' }}>← 고객 목록으로</Link>
         <h1 style={{ fontSize: 20, marginTop: 12 }}>👤 고객 상세</h1>
         {error && <p style={{ color: '#dc2626' }}>{error}</p>}

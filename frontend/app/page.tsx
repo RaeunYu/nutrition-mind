@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WorkspaceHeader from './_components/workspace-header';
 import { ROLE_HOME, getAuth, type Auth } from '../lib/auth';
+import { pageContainer } from '../lib/design';
 
 const cardStyle: React.CSSProperties = {
   border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, background: '#fff',
@@ -31,7 +32,7 @@ export default function Page() {
   return (
     <div>
       <WorkspaceHeader title="상담 워크스페이스" auth={auth} />
-      <main style={{ maxWidth: 760, margin: '24px auto', padding: 24, background: '#fff', borderRadius: 12 }}>
+      <main style={pageContainer}>
         <h1 style={{ fontSize: 20, marginTop: 0 }}>🧪 상담 워크스페이스</h1>
         <p style={{ color: '#666', fontSize: 13 }}>
           고객 상담에 필요한 도구로 이동하세요.

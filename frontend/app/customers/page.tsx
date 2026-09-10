@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WorkspaceHeader from '../_components/workspace-header';
 import { BACKEND, getAuth, type Auth } from '../../lib/auth';
+import { pageContainer, btnPrimary } from '../../lib/design';
 
 const inputStyle: React.CSSProperties = { display: 'block', width: '100%', padding: 10, marginBottom: 8, boxSizing: 'border-box' };
 const btnStyle: React.CSSProperties = { padding: '8px 14px', cursor: 'pointer' };
@@ -83,7 +84,7 @@ export default function CustomersPage() {
   return (
     <div>
       <WorkspaceHeader title="고객 관리" auth={auth} />
-      <main style={{ maxWidth: 760, margin: '24px auto', padding: 24, background: '#fff', borderRadius: 12 }}>
+      <main style={pageContainer}>
         <h1 style={{ fontSize: 20, marginTop: 0 }}>👥 고객 목록</h1>
         <p style={{ color: '#666', fontSize: 13 }}>
           개인정보는 목록에서 마스킹됩니다(최소노출). 전체 값은 상세 화면에서만 확인하세요.
@@ -132,7 +133,7 @@ export default function CustomersPage() {
             onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <textarea style={inputStyle} placeholder="메모 (선택)" rows={2} value={form.memo}
             onChange={(e) => setForm({ ...form, memo: e.target.value })} />
-          <button onClick={register} disabled={busy} style={btnStyle}>
+          <button onClick={register} disabled={busy} style={btnPrimary}>
             {busy ? '등록 중…' : '고객 등록'}
           </button>
           {formMessage && <p style={{ color: '#334155', fontSize: 13 }}>{formMessage}</p>}
