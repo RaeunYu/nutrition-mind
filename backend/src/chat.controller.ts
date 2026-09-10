@@ -1,14 +1,24 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { LlmService } from './llm.service';
+import { PrismaService } from './prisma.service';
+import { CryptoService } from './crypto.service';
+import { IngredientMappingService, MaterialInput, IngredientRule } from './ingredient-mapping.service';
+import { AccessLogService } from './access-log.service';
 import { Pool } from 'pg';
 
-/** 최소 기능 챗봇: 법령 RAG(pgvector) 근거 + LLM 합성(선택, 폴백 지원). */
+/** 상담 보조 챗봇: 법령 RAG(pgvector) 근거 + LLM 합성(선택, 폴백 지원) + 고객 컨텍스트 개인화(이슈 #18). */
 @Controller('chat')
 export class ChatController {
   private pg: Pool | null = null;
 
-  constructor(private readonly llm: LlmService) {}
+  constructor(
+    private readonly llm: LlmService,
+    private readonly prisma: PrismaService,
+    private readonly crypto: CryptoService,
+    private readonly mapping: IngredientMappingService,
+    private readonly accessLog: AccessLogService,
+  ) {}
 
   private pool() {
     if (!this.pg) {
@@ -22,9 +32,70 @@ export class ChatController {
 
   @UseGuards(JwtAuthGuard)
   @Post('chat')
-  async chat(@Body() body: { question?: string }) {
+  async chat(
+    @Body() body: { question?: string; customerId?: string },
+    @Req() req: { user?: { email?: string; role?: string } },
+  ) {
     const question = body?.question ?? '';
     if (!question) return { error: 'question이 필요합니다.' };
+
+    // 고객 컨텍스트 개인화(이슈 #18): customerId가 있으면 고객 정보를 근거와 별도 블록으로 주입.
+    // 고객이 없거나 조회 실패하면 일반 답변으로 우아하게 폴백한다(사유를 notices에 표기).
+    let customerContext: string | undefined;
+    let customerName: string | undefined;
+    const noticesPre: string[] = [];
+    if (body?.customerId) {
+      const row = await this.prisma.customer.findUnique({
+        where: { id: body.customerId },
+        include: { ingredients: true, intakeProducts: true },
+      });
+      if (!row) {
+        noticesPre.push('⚠️ 지정한 고객을 찾을 수 없어 일반 답변으로 처리합니다.');
+      } else {
+        await this.accessLog.record(req.user ?? {}, row.id).catch(() => undefined);
+        const dek = this.crypto.unwrapDek(row.keySlot);
+        customerName = this.crypto.decryptField(row.nameEnc, dek) ?? '';
+
+        const rules = await this.prisma.ingredient.findMany({ orderBy: { createdAt: 'asc' } });
+        const ruleList: IngredientRule[] = rules.map((r) => ({ id: r.id, name: r.name, synonyms: r.synonyms, keywords: r.keywords }));
+        const inputs: MaterialInput[] = [
+          ...row.intakeProducts.map((p) => ({
+            productName: p.productName,
+            rawMaterialText: p.rawMaterials,
+            source: 'intake_product' as const,
+          })),
+          ...row.ingredients.map((m) => ({
+            productName: null,
+            rawMaterialText: m.ingredientName,
+            source: 'manual_ingredient' as const,
+          })),
+        ];
+        const mapping = this.mapping.mapMaterials(inputs, ruleList);
+        const coveredNames = mapping.matches.map((m) => m.ingredientName);
+        const interestRows = await this.prisma.customerInterest.findMany({
+          where: { customerId: row.id },
+          include: { ingredient: true },
+          orderBy: { ingredient: { createdAt: 'asc' } },
+        });
+        const coveredSet = new Set(mapping.matches.map((m) => m.ingredientId));
+        const interestNames = interestRows.map((r) => r.ingredient.name);
+        void coveredSet;
+
+        const lines: string[] = [`고객명: ${customerName}`];
+        if (row.intakeProducts.length > 0) {
+          lines.push('섭취 제품: ' + row.intakeProducts.map((p) => p.productName).join(', '));
+        }
+        if (interestNames.length > 0) {
+          lines.push(`관심 성분: ${interestNames.join(', ')} (커버: ${coveredNames.join(', ') || '없음'})`);
+        }
+        const gapNames = interestNames.filter((n) => !coveredNames.includes(n));
+        if (gapNames.length > 0) {
+          lines.push(`성분 갭(미커버): ${gapNames.join(', ')}`);
+        }
+        customerContext = lines.join('\n');
+        noticesPre.push('ℹ️ 고객 컨텍스트 적용: ' + customerName);
+      }
+    }
 
     // 1) 질문 임베딩 (Ollama — 임베딩은 항상 로컬)
     const ollama = process.env.OLLAMA_BASE_URL ?? 'http://host.docker.internal:11434';
@@ -63,6 +134,7 @@ export class ChatController {
         article_title: r.article_title,
         content: r.content,
       })),
+      customerContext,
     );
 
     const notices: string[] = [];
@@ -91,10 +163,13 @@ export class ChatController {
     const top1 = rows[0] ? Number(rows[0].score) : 0;
     return {
       answer,
-      notices,           // LLM 상태 안내(비활성/실패 사유)
+      notices: [...noticesPre, ...notices], // 고객 컨텍스트 상태 + LLM 상태 안내
       llm: llm.ok ? { provider: llm.provider, model: llm.model } : null,
       sources: rows.length,
       top1,
+      customerContext: customerName
+        ? { applied: true, customerId: body?.customerId, customerName }
+        : { applied: false },
     };
   }
 }

@@ -50,8 +50,16 @@ export class LlmService {
     return { active: true, provider, model: this.model };
   }
 
-  /** 근거 조문 기반 응답 합성. 실패 시 ok=false + reason. */
-  async synthesize(question: string, articles: Array<{ law_name: string; article_no: string; article_title: string | null; content: string }>): Promise<LlmResult> {
+  /**
+   * 근거 조문 기반 응답 합성. 실패 시 ok=false + reason.
+   * customerContext가 있으면(이슈 #18 상담 보조 개인화) 사용자 메시지에 고객 맥락 블록을 추가한다 —
+   * 답변의 법적 근거는 여전히 근거 조문이며, 고객 정보는 상담 맥락 참고용으로만 제한한다.
+   */
+  async synthesize(
+    question: string,
+    articles: Array<{ law_name: string; article_no: string; article_title: string | null; content: string }>,
+    customerContext?: string,
+  ): Promise<LlmResult> {
     const status = this.check();
     if (!status.active) {
       return { ok: false, reason: status.reason, provider: status.provider, model: status.model };
@@ -69,7 +77,8 @@ export class LlmService {
       '반드시 제공된 근거 조문에 근거해서만 답변하고, 각 문장 뒤에 [1][2] 같은 각주 번호로 출처를 표기하세요. ' +
       '근거에 없는 내용은 추측하지 말고 "근거 조문에 근거한 설명이 없습니다"라고 말하세요. 한국어로 답변하세요.';
 
-    const user = `질문: ${question}\n\n근거 조문:\n${context}`;
+    const user = `질문: ${question}\n\n근거 조문:\n${context}` +
+      (customerContext ? `\n\n[상담 중인 고객 정보]\n${customerContext}\n(고객 정보는 상담 맥락 참고용 — 답변 근거는 위 근거 조문이어야 한다.)` : '');
 
     try {
       const answer = await this.call(system, user);
