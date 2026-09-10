@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -14,6 +15,7 @@ import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
 import { PrismaService } from './prisma.service';
 import { CryptoService } from './crypto.service';
+import { AccessLogService } from './access-log.service';
 
 /**
  * 고객 API (ADR-0002, 이슈 #13).
@@ -44,6 +46,7 @@ export class CustomersController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly accessLog: AccessLogService,
   ) {}
 
   /** 고객 목록 — 개인식별 필드 마스킹(이름 첫 글자 + '**', 연락처 뒤 4자리, 이메일 도메인). */
@@ -70,14 +73,15 @@ export class CustomersController {
     return items;
   }
 
-  /** 고객 상세 — 개인식별 필드 복호화(상담 담당자 조회 용도). */
+  /** 고객 상세 — 개인식별 필드 복호화(상담 담당자 조회 용도). 접근 시 기록을 남긴다(ADR-0002, 이슈 #14). */
   @Get(':id')
-  async detail(@Param('id') id: string) {
+  async detail(@Param('id') id: string, @Req() req: { user?: { email?: string; role?: string } }) {
     const row = await this.prisma.customer.findUnique({
       where: { id },
       include: { ingredients: true },
     });
     if (!row) throw new NotFoundException('고객을 찾을 수 없습니다.');
+    await this.accessLog.record(req.user ?? {}, id); // 개인정보 노출 화면 접근 기록(총관리자 열람 — 이슈 #14)
     const dek = this.crypto.unwrapDek(row.keySlot);
     return {
       id: row.id,
@@ -114,9 +118,9 @@ export class CustomersController {
     return { id: created.id, name: maskName(input.name!), created: true };
   }
 
-  /** 고객 수정 — 기존 DEK(key_slot unwrap)로 변경 필드를 재암호화. */
+  /** 고객 수정 — 기존 DEK(key_slot unwrap)로 변경 필드를 재암호화. 응답도 복호화 값을 포함하므로 접근을 기록한다. */
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() body: UpdateCustomerBody) {
+  async update(@Param('id') id: string, @Body() body: UpdateCustomerBody, @Req() req: { user?: { email?: string; role?: string } }) {
     const row = await this.prisma.customer.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('고객을 찾을 수 없습니다.');
 
@@ -140,7 +144,7 @@ export class CustomersController {
     if (Object.keys(data).length > 0) {
       await this.prisma.customer.update({ where: { id }, data });
     }
-    return this.detail(id);
+    return this.detail(id, req);
   }
 
   /**

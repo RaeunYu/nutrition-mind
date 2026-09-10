@@ -96,3 +96,14 @@ CREATE TABLE customer_ingredients (
   ingredient_name text NOT NULL,
   PRIMARY KEY (customer_id, ingredient_name)
 );
+
+-- 접근 로그 (ADR-0002, 이슈 #14): 고객 개인정보 노출 화면 접근 기록 — 총관리자만 조회
+CREATE TABLE access_logs (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_email text NOT NULL,
+  actor_role  text NOT NULL,
+  customer_id uuid NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  accessed_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_access_logs_accessed_at ON access_logs (accessed_at DESC);
+CREATE INDEX idx_access_logs_customer ON access_logs (customer_id);

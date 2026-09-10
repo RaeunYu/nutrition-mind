@@ -116,6 +116,7 @@ model Customer {
   emailEnc    String?  @map("email_enc")
   memoEnc     String?  @map("memo_enc")
   ingredients CustomerIngredient[]
+  accessLogs  AccessLog[]
 
   @@map("customers")
 }
@@ -129,4 +130,19 @@ model CustomerIngredient {
 
   @@id([customerId, ingredientName])
   @@map("customer_ingredients")
+}
+
+/// 접근 로그 (ADR-0002, 이슈 #14) — 고객 개인정보 노출 화면 접근 기록(총관리자만 조회).
+/// actor_email·actor_role은 접근 시점의 JWT 클레임(사용자 삭제 후에도 기록 유지 — 비정규화).
+model AccessLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorEmail String   @map("actor_email")
+  actorRole  String   @map("actor_role")
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  accessedAt DateTime @default(now()) @map("accessed_at") @db.Timestamptz(6)
+
+  @@index([accessedAt(sort: Desc)])
+  @@index([customerId])
+  @@map("access_logs")
 }
