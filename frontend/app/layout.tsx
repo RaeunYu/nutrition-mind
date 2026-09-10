@@ -11,6 +11,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@400;450;500;700&display=swap"
           rel="stylesheet"
         />
+        <style>{`
+          @keyframes nm-spin { to { transform: rotate(360deg); } }
+          .nm-spinner { animation: nm-spin 0.8s linear infinite; }
+        `}</style>
       </head>
       <body
         style={{

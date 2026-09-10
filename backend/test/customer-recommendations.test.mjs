@@ -73,13 +73,14 @@ async function main() {
     } else {
       // 재실행 멱등: 새 제안이 없으면 기존 제안 목록으로 대체 검증
       const existing = await api('GET', `/customers/${customerId}/recommendations`, consultant);
-      check('기존 제안 목록으로 근거 검증 대체', (existing.body ?? []).length > 0, `rows=${(existing.body ?? []).length}`);
+      check('기존 제안 목록으로 근거 검증 대체', (existing.body?.items ?? []).length > 0, `rows=${(existing.body?.items ?? []).length}`);
     }
 
     const regenerated = await api('POST', `/customers/${customerId}/recommendations/generate`, consultant);
     check('재생성 성공', regenerated.status === 200 || regenerated.status === 201, `status=${regenerated.status}`);
     const recList = await api('GET', `/customers/${customerId}/recommendations`, consultant);
-    const triples = (recList.body ?? []).map((r) => `${r.ingredientId}#${r.apiCode}#${r.reportNo}`);
+    const recItems = recList.body?.items ?? [];
+    const triples = recItems.map((r) => `${r.ingredientId}#${r.apiCode}#${r.reportNo}`);
     const unique = new Set(triples);
     check('재생성 후 중복 제안 없음(유니크 인덱스 멱등)', triples.length === unique.size, `rows=${triples.length} unique=${unique.size}`);
   }
@@ -87,7 +88,7 @@ async function main() {
   console.log('\n2) 상태 전이(수용/보류)');
   {
     const list = await api('GET', `/customers/${customerId}/recommendations`, consultant);
-    const target = (list.body ?? []).find((r) => r.status === 'proposed');
+    const target = (list.body?.items ?? []).find((r) => r.status === 'proposed');
     check('proposed 제안 존재', Boolean(target));
     if (target) {
       const accepted = await api('PATCH', `/customers/${customerId}/recommendations/${target.id}`, consultant, { status: 'accepted' });

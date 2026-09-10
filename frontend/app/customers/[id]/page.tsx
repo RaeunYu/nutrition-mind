@@ -3,8 +3,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WorkspaceHeader from '../../_components/workspace-header';
+import Spinner from '../../_components/spinner';
 import { BACKEND, getAuth, type Auth } from '../../../lib/auth';
-import { pageContainer, btnPrimary } from '../../../lib/design';
+import { colors, pageContainer, btnPrimary, btnSecondary } from '../../../lib/design';
 
 const inputStyle: React.CSSProperties = { display: 'block', width: '100%', padding: 10, marginBottom: 8, boxSizing: 'border-box' };
 const btnStyle: React.CSSProperties = { padding: '8px 14px', cursor: 'pointer' };
@@ -145,7 +146,7 @@ export default function CustomerDetailPage() {
       });
       if (recRes.ok) {
         const recData = await recRes.json();
-        setRecommendations(recData.items ?? []);
+        setRecommendations(Array.isArray(recData) ? recData : recData.items ?? []);
       }
       setSelected((data.interests ?? []).map((i) => i.ingredientId)); // 저장된 관심 성분 기준(재로드 시 갱신)
       setError('');
@@ -391,7 +392,7 @@ export default function CustomerDetailPage() {
                 ))}
                 {master.length === 0 && <span style={{ color: '#94a3b8', fontSize: 13 }}>성분 마스터가 비어 있습니다.</span>}
               </div>
-              <button onClick={() => { void saveInterests(); }} disabled={interestBusy} style={{ marginTop: 10, ...btnStyle }}>
+              <button onClick={() => { void saveInterests(); }} disabled={interestBusy} style={{ marginTop: 10, ...btnPrimary, fontSize: 13 }}>
                 {interestBusy ? '저장 중…' : `관심 성분 저장 (${selected.length}개 선택)`}
               </button>
               {interestMessage && <p style={{ color: '#334155', fontSize: 13 }}>{interestMessage}</p>}
@@ -461,8 +462,7 @@ export default function CustomerDetailPage() {
                     </div>
                     {p.rawMaterials && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#475569' }}>원료: {p.rawMaterials.slice(0, 120)}{p.rawMaterials.length > 120 ? '…' : ''}</p>}
                     {p.functionality && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#475569' }}>기능성: {p.functionality.slice(0, 120)}{p.functionality.length > 120 ? '…' : ''}</p>}
-                    <button onClick={() => { void removeIntake(p.id); }} disabled={intakeBusy}
-                      style={{ marginTop: 8, fontSize: 12, padding: '4px 10px', cursor: 'pointer', borderRadius: 6 }}>
+                    <button onClick={() => { void removeIntake(p.id); }} disabled={intakeBusy} style={{ ...btnSecondary, marginTop: 8, fontSize: 12 }}>
                       제거
                     </button>
                   </li>
@@ -478,7 +478,9 @@ export default function CustomerDetailPage() {
                 <input style={{ ...inputStyle, marginBottom: 0 }} placeholder="제품명 검색 (예: 유산균)"
                   value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { void searchProducts(); } }} />
-                <button onClick={() => { void searchProducts(); }} disabled={intakeBusy} style={btnStyle}>검색</button>
+                <button onClick={() => { void searchProducts(); }} disabled={intakeBusy} style={{ ...btnSecondary, display: 'inline-flex', alignItems: 'center' }}>
+                {intakeBusy && <Spinner size={12} color={colors.ink} />}검색
+              </button>
               </div>
               {searchResults !== null && (
                 <div style={{ marginTop: 12 }}>
@@ -531,10 +533,8 @@ export default function CustomerDetailPage() {
                   </p>
                   {r.status === 'proposed' && (
                     <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                      <button onClick={() => { void decide(r.id, 'accepted'); }} disabled={recommendationBusy}
-                        style={{ fontSize: 12, padding: '4px 10px', cursor: 'pointer', borderRadius: 6 }}>수용</button>
-                      <button onClick={() => { void decide(r.id, 'held'); }} disabled={recommendationBusy}
-                        style={{ fontSize: 12, padding: '4px 10px', cursor: 'pointer', borderRadius: 6 }}>보류</button>
+                      <button onClick={() => { void decide(r.id, 'accepted'); }} disabled={recommendationBusy} style={{ ...btnPrimary, fontSize: 12, padding: '4px 10px' }}>수용</button>
+                      <button onClick={() => { void decide(r.id, 'held'); }} disabled={recommendationBusy} style={{ ...btnSecondary, fontSize: 12, padding: '4px 10px' }}>보류</button>
                     </div>
                   )}
                 </div>
@@ -550,7 +550,7 @@ export default function CustomerDetailPage() {
                 onChange={(e) => setManual({ ...manual, rawMaterials: e.target.value })} />
               <input style={inputStyle} placeholder="기능성·주의사항 (선택)" value={manual.functionality}
                 onChange={(e) => setManual({ ...manual, functionality: e.target.value })} />
-              <button onClick={() => { void registerManual(); }} disabled={intakeBusy} style={btnStyle}>수동 등록</button>
+              <button onClick={() => { void registerManual(); }} disabled={intakeBusy} style={{ ...btnPrimary, fontSize: 13 }}>수동 등록</button>
             </section>
 
             <section style={{ marginBottom: 8 }}>
@@ -563,7 +563,7 @@ export default function CustomerDetailPage() {
                 onChange={(e) => setEdit({ ...edit, email: e.target.value })} />
               <textarea style={inputStyle} placeholder="메모" rows={3} value={edit.memo}
                 onChange={(e) => setEdit({ ...edit, memo: e.target.value })} />
-              <button onClick={save} disabled={busy} style={btnStyle}>
+              <button onClick={save} disabled={busy} style={btnPrimary}>
                 {busy ? '저장 중…' : '저장'}
               </button>
               {message && <p style={{ color: '#334155', fontSize: 13 }}>{message}</p>}

@@ -65,7 +65,7 @@ npx prisma db seed         # 데모 시딩(멱등) — 역할 3종, 데모 계�
 # ../ingest/load_foodsafety_csv.py (46,000건×2 — 효율상 Python 유지)
 ```
 
-> Prisma는 **v7.10.0 고정**. v8은 RC 상태로 불확실성이 있어 고정했으며, 추후 마이그레이션 절차는
+> 사용자의 요청에 따라 Prisma는 **v7.10.0 고정**. v8은 RC 상태로 불확실성이 있어 고정했으며, 추후 마이그레이션 절차는
 > [`backend/prisma/V8_MIGRATION_NOTE.md`](./backend/prisma/V8_MIGRATION_NOTE.md)에 기록해 두었습니다.
 
 ### 5) 실행

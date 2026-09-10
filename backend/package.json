@@ -17,7 +17,7 @@
     "test:customer-products": "node test/customer-products.test.mjs",
     "test:mapping": "tsx test/ingredient-mapping.test.mjs",
     "test:gap": "node test/customer-gap.test.mjs",
-    "test:recommendation": "tsx test/recommendation.test.ts"
+    "test:recommendation": "tsx test/recommendation.test.ts",
     "test:recommendations": "node test/customer-recommendations.test.mjs",
     "test:research": "node test/research.test.mjs",
     "test:chat": "node test/chat-personalization.test.mjs",

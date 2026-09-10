@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WorkspaceHeader from '../_components/workspace-header';
+import Spinner from '../_components/spinner';
 import { BACKEND, getAuth, type Auth } from '../../lib/auth';
 import { pageContainer, btnPrimary } from '../../lib/design';
 
@@ -96,7 +97,8 @@ export default function ChatPage() {
             rows={3}
             style={inputStyle}
           />
-          <button onClick={() => { void ask(); }} disabled={busy} style={{ ...btnPrimary, padding: '10px 16px' }}>
+          <button onClick={() => { void ask(); }} disabled={busy} style={{ ...btnPrimary, padding: '10px 16px', display: 'inline-flex', alignItems: 'center' }}>
+            {busy && <Spinner size={13} />}
             {busy ? '응답 생성 중…' : '질의하기'}
           </button>
           {notices.length > 0 && (

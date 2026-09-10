@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WorkspaceHeader from '../_components/workspace-header';
+import Spinner from '../_components/spinner';
 import { BACKEND, ROLE_HOME, getAuth, type Auth } from '../../lib/auth';
-import { pageContainer, btnPrimary } from '../../lib/design';
+import { colors, pageContainer, btnPrimary, btnSecondary } from '../../lib/design';
 
 const inputStyle: React.CSSProperties = { display: 'block', width: '100%', padding: 10, marginBottom: 8, boxSizing: 'border-box' };
 const btnStyle: React.CSSProperties = { padding: '10px 16px', cursor: 'pointer' };
@@ -115,7 +116,8 @@ export default function MarketingPage() {
             rows={3}
             style={inputStyle}
           />
-          <button onClick={() => { void check(); }} disabled={busy} style={btnPrimary}>
+          <button onClick={() => { void check(); }} disabled={busy} style={{ ...btnPrimary, display: 'inline-flex', alignItems: 'center' }}>
+            {busy && <Spinner size={13} />}
             {busy ? '판정 중…' : '문구 검증'}
           </button>
           {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
@@ -165,7 +167,9 @@ export default function MarketingPage() {
               onChange={(e) => setResearchQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { void searchResearch(); } }}
             />
-            <button onClick={() => { void searchResearch(); }} disabled={researchBusy} style={btnStyle}>검색</button>
+            <button onClick={() => { void searchResearch(); }} disabled={researchBusy} style={{ ...btnSecondary, display: 'inline-flex', alignItems: 'center' }}>
+              {researchBusy && <Spinner size={12} color={colors.ink} />}검색
+            </button>
           </div>
           {researchResults.length > 0 && (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 12 }}>
@@ -183,7 +187,7 @@ export default function MarketingPage() {
                       {(p.productName || p.rawMaterialName || '—')}
                       <div style={{ fontSize: 11, color: '#94a3b8' }}>{p.apiCode} · {p.reportNo ?? '—'}</div>
                     </td>
-                    <td style={{ padding: 6, fontSize: 12 }}>{(p.functionality ?? '').slice(0, 80) || '—'}</td>
+                    <td style={{ padding: 6, fontSize: 12 }}>{(p.functionalityText ?? '').slice(0, 80) || '—'}</td>
                     <td style={{ padding: 6, fontSize: 12 }}>{(p.intakeNote ?? '').slice(0, 100) || '—'}</td>
                   </tr>
                 ))}

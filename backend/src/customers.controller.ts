@@ -419,7 +419,7 @@ export class CustomersController {
     };
   }
 
-  /** 추천 제안 목록 — 상태 포함(proposed·accepted·held). */
+  /** 추천 제안 목록 — 상태 포함(proposed·accepted·held). {total, items} 형식(이슈 #23 수정). */
   @Get(':id/recommendations')
   async listRecommendations(@Param('id') id: string) {
     await this.ensureCustomer(id);
@@ -427,11 +427,14 @@ export class CustomersController {
       where: { customerId: id },
       orderBy: { createdAt: 'asc' },
     });
-    return rows.map((r) => ({
-      id: r.id, ingredientId: r.ingredientId, apiCode: r.apiCode, reportNo: r.reportNo,
-      productName: r.productName, rawMaterials: r.rawMaterials,
-      status: r.status, decidedAt: r.decidedAt,
-    }));
+    return {
+      total: rows.length,
+      items: rows.map((r) => ({
+        id: r.id, ingredientId: r.ingredientId, apiCode: r.apiCode, reportNo: r.reportNo,
+        productName: r.productName, rawMaterials: r.rawMaterials,
+        status: r.status, decidedAt: r.decidedAt,
+      })),
+    };
   }
 
   /** 추천 제안 상태 변경(수용/보류) — 담당자 확인 절차. 자동 수용·섭취 자동 등록은 없다. */
