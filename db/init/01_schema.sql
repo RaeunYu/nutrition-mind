@@ -107,3 +107,18 @@ CREATE TABLE access_logs (
 );
 CREATE INDEX idx_access_logs_accessed_at ON access_logs (accessed_at DESC);
 CREATE INDEX idx_access_logs_customer ON access_logs (customer_id);
+
+-- 고객 섭취 제품 (이슈 #15): 품목제조신고 제품 연결(source=foodsafety, 스냅샷 저장) 또는 수동 등록(source=manual)
+CREATE TABLE customer_products (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id  uuid NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  source       text NOT NULL,
+  api_code     text,
+  report_no    text,
+  product_name text NOT NULL,
+  raw_materials text,
+  functionality text,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_customer_products_customer ON customer_products (customer_id);
+CREATE UNIQUE INDEX idx_customer_products_link ON customer_products (customer_id, api_code, report_no) WHERE source = 'foodsafety';

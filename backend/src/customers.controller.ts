@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -73,28 +74,6 @@ export class CustomersController {
     return items;
   }
 
-  /** 고객 상세 — 개인식별 필드 복호화(상담 담당자 조회 용도). 접근 시 기록을 남긴다(ADR-0002, 이슈 #14). */
-  @Get(':id')
-  async detail(@Param('id') id: string, @Req() req: { user?: { email?: string; role?: string } }) {
-    const row = await this.prisma.customer.findUnique({
-      where: { id },
-      include: { ingredients: true },
-    });
-    if (!row) throw new NotFoundException('고객을 찾을 수 없습니다.');
-    await this.accessLog.record(req.user ?? {}, id); // 개인정보 노출 화면 접근 기록(총관리자 열람 — 이슈 #14)
-    const dek = this.crypto.unwrapDek(row.keySlot);
-    return {
-      id: row.id,
-      name: this.crypto.decryptField(row.nameEnc, dek),
-      phone: this.crypto.decryptField(row.phoneEnc, dek),
-      email: this.crypto.decryptField(row.emailEnc, dek),
-      memo: this.crypto.decryptField(row.memoEnc, dek),
-      ingredients: row.ingredients
-        .map((ci) => ci.ingredientName)
-        .sort((a, b) => a.localeCompare(b, 'ko')),
-    };
-  }
-
   /** 고객 등록 — 입력을 암호화해 저장. 같은 이름 중복은 복호화 비교로 검사. */
   @Post()
   async create(@Body() body: CreateCustomerBody) {
@@ -116,6 +95,111 @@ export class CustomersController {
       },
     });
     return { id: created.id, name: maskName(input.name!), created: true };
+  }
+
+  /** 고객 상세 — 개인식별 필드 복호화(상담 담당자 조회 용도). 접근 시 기록을 남긴다(ADR-0002, 이슈 #14). */
+  @Get(':id')
+  async detail(@Param('id') id: string, @Req() req: { user?: { email?: string; role?: string } }) {
+    const row = await this.prisma.customer.findUnique({
+      where: { id },
+      include: { ingredients: true },
+    });
+    if (!row) throw new NotFoundException('고객을 찾을 수 없습니다.');
+    await this.accessLog.record(req.user ?? {}, id); // 개인정보 노출 화면 접근 기록(총관리자 열람 — 이슈 #14)
+    const dek = this.crypto.unwrapDek(row.keySlot);
+    const intakeProducts = await this.listIntakeProducts(id);
+    return {
+      id: row.id,
+      name: this.crypto.decryptField(row.nameEnc, dek),
+      phone: this.crypto.decryptField(row.phoneEnc, dek),
+      email: this.crypto.decryptField(row.emailEnc, dek),
+      memo: this.crypto.decryptField(row.memoEnc, dek),
+      ingredients: row.ingredients
+        .map((ci) => ci.ingredientName)
+        .sort((a, b) => a.localeCompare(b, 'ko')),
+      intakeProducts,
+    };
+  }
+
+  /** 섭취 제품 목록 — 고객 상세 화면의 섭취 제품 섹션용(개인정보 아님, 마스킹·기록 불필요). */
+  @Get(':id/products')
+  async intakeProducts(@Param('id') id: string) {
+    await this.ensureCustomer(id);
+    return this.listIntakeProducts(id);
+  }
+
+  /**
+   * 섭취 제품 연결/등록 (이슈 #15).
+   * - source=foodsafety: 품목제조신고 제품 연결 — api_code+report_no 조합으로 식별(#12: 동일 report_no가 C003·I0030에 공존).
+   *   연결 시 제품 정보(제품명·원료·기능성)를 스냅샷으로 저장한다(원본 payload 변경과 무관하게 표시 안정성 유지).
+   * - source=manual: 식약처 미수록 제품을 담당자가 수동 등록.
+   */
+  @Post(':id/products')
+  async addIntakeProduct(
+    @Param('id') id: string,
+    @Body() body: AddIntakeProductBody,
+  ) {
+    await this.ensureCustomer(id);
+    const b = (body ?? {}) as Record<string, unknown>;
+    const source = b.source === 'manual' ? 'manual' : b.source === 'foodsafety' ? 'foodsafety' : null;
+    if (!source) throw new BadRequestException('source는 foodsafety 또는 manual이어야 합니다.');
+
+    if (source === 'foodsafety') {
+      const apiCode = this.plain(b.apiCode, 20);
+      const reportNo = this.plain(b.reportNo, 50);
+      if (!apiCode || !reportNo) throw new BadRequestException('품목제조신고 연결에는 apiCode·reportNo가 필요합니다.');
+      const rows = await this.prisma.$queryRawUnsafe<Array<{ product_name: string; raw_material_name: string | null; functionality_text: string | null }>>(
+        'SELECT product_name, raw_material_name, functionality_text FROM foodsafety_rows WHERE api_code = $1 AND report_no = $2 LIMIT 1',
+        apiCode, reportNo,
+      );
+      if (rows.length === 0) throw new NotFoundException('해당 품목제조신고 제품을 찾을 수 없습니다.');
+      try {
+        const created = await this.prisma.customerProduct.create({
+          data: {
+            customerId: id,
+            source,
+            apiCode,
+            reportNo,
+            productName: rows[0].product_name,
+            rawMaterials: rows[0].raw_material_name,
+            functionality: rows[0].functionality_text,
+          },
+        });
+        return this.intakeProductView(created.id);
+      } catch (e) {
+        if ((e as { code?: string }).code === 'P2002') {
+          throw new BadRequestException('이미 연결된 섭취 제품입니다.');
+        }
+        throw e;
+      }
+    }
+
+    // manual 등록
+    const productName = this.plain(b.productName, 200);
+    if (!productName) throw new BadRequestException('제품명은 필수입니다.');
+    const rawMaterials = this.plain(b.rawMaterials, 2000);
+    const functionality = this.plain(b.functionality, 2000);
+    const dup = await this.prisma.customerProduct.findFirst({
+      where: { customerId: id, source, productName },
+    });
+    if (dup) throw new BadRequestException('이미 등록된 섭취 제품입니다.');
+    const created = await this.prisma.customerProduct.create({
+      data: { customerId: id, source, productName, rawMaterials, functionality },
+    });
+    return this.intakeProductView(created.id);
+  }
+
+  /** 섭취 제품 제거. */
+  @Delete(':id/products/:productId')
+  async removeIntakeProduct(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+  ) {
+    const deleted = await this.prisma.customerProduct.deleteMany({
+      where: { id: productId, customerId: id },
+    });
+    if (deleted.count === 0) throw new NotFoundException('섭취 제품을 찾을 수 없습니다.');
+    return { removed: true };
   }
 
   /** 고객 수정 — 기존 DEK(key_slot unwrap)로 변경 필드를 재암호화. 응답도 복호화 값을 포함하므로 접근을 기록한다. */
@@ -145,6 +229,53 @@ export class CustomersController {
       await this.prisma.customer.update({ where: { id }, data });
     }
     return this.detail(id, req);
+  }
+
+  /** 고객 존재 확인(404). */
+  private async ensureCustomer(id: string): Promise<void> {
+    const row = await this.prisma.customer.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException('고객을 찾을 수 없습니다.');
+  }
+
+  /** 섭취 제품 목록 — 생성 순 역순(최근 연결 먼저). */
+  private async listIntakeProducts(customerId: string) {
+    const rows = await this.prisma.customerProduct.findMany({
+      where: { customerId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      source: r.source,
+      apiCode: r.apiCode,
+      reportNo: r.reportNo,
+      productName: r.productName,
+      rawMaterials: r.rawMaterials,
+      functionality: r.functionality,
+    }));
+  }
+
+  private async intakeProductView(productId: string) {
+    const r = await this.prisma.customerProduct.findUnique({ where: { id: productId } });
+    if (!r) throw new NotFoundException('섭취 제품을 찾을 수 없습니다.');
+    return {
+      id: r.id,
+      source: r.source,
+      apiCode: r.apiCode,
+      reportNo: r.reportNo,
+      productName: r.productName,
+      rawMaterials: r.rawMaterials,
+      functionality: r.functionality,
+    };
+  }
+
+  /** 문자열 입력 정리(trim + 길이 제한). 빈 문자열·비문자열은 null. */
+  private plain(value: unknown, max: number): string | null {
+    if (value === undefined || value === null) return null;
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return null;
+    if (trimmed.length > max) throw new BadRequestException(`입력값은 ${max}자 이하로 입력하세요.`);
+    return trimmed;
   }
 
   /**
@@ -203,6 +334,15 @@ interface CreateCustomerBody {
   memo?: string;
 }
 type UpdateCustomerBody = CreateCustomerBody;
+
+interface AddIntakeProductBody {
+  source?: 'foodsafety' | 'manual';
+  apiCode?: string;
+  reportNo?: string;
+  productName?: string;
+  rawMaterials?: string;
+  functionality?: string;
+}
 
 /** 이름 마스킹 — 첫 글자 + '**' (예: 김건강 → 김**). */
 export function maskName(name: string): string {

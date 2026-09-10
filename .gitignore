@@ -23,10 +23,11 @@ lerna-debug.log*
 .temp
 .tmp
 
-# ooo run: 구현 산출물
 node_modules/
 .next/
 dist/
 __pycache__/
 .venv/
 .env
+
+frontend/tsconfig.tsbuildinfo

@@ -117,8 +117,27 @@ model Customer {
   memoEnc     String?  @map("memo_enc")
   ingredients CustomerIngredient[]
   accessLogs  AccessLog[]
+  intakeProducts CustomerProduct[]
 
   @@map("customers")
+}
+
+/// 고객 섭취 제품 (이슈 #15) — 품목제조신고 제품 연결(source=foodsafety, 제품 정보 스냅샷 저장) 또는 수동 등록(source=manual).
+/// 제품 데이터는 개인정보가 아니므로 평문 저장한다(ADR-0002는 개인식별 필드에만 적용).
+model CustomerProduct {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId   String   @map("customer_id") @db.Uuid
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  source       String
+  apiCode      String?  @map("api_code")
+  reportNo     String?  @map("report_no")
+  productName  String   @map("product_name")
+  rawMaterials String?  @map("raw_materials")
+  functionality String? @map("functionality")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([customerId])
+  @@map("customer_products")
 }
 
 /// 고객:성분 1:N
