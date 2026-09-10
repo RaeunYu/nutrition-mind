@@ -5,9 +5,35 @@ import Link from 'next/link';
 import WorkspaceHeader from '../../_components/workspace-header';
 import Spinner from '../../_components/spinner';
 import { BACKEND, getAuth, type Auth } from '../../../lib/auth';
-import { colors, pageContainer, btnPrimary, btnSecondary } from '../../../lib/design';
+import { colors, font, pageContainer, btnPrimary, btnSecondary } from '../../../lib/design';
 
 const inputStyle: React.CSSProperties = { display: 'block', width: '100%', padding: 10, marginBottom: 8, boxSizing: 'border-box' };
+
+/** DESIGN.md 아이브브라우 — 액센트 점 + 대문자 볼드 트래킹(섹션 카테고리 신호). */
+const eyebrow = (label: string): React.CSSProperties | null => null;
+const sectionEyebrow = (label: string): React.CSSProperties => ({
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
+  color: colors.slateGray,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  marginBottom: 10,
+  fontFamily: font.family,
+} as React.CSSProperties);
+const sectionTitle: React.CSSProperties = {
+  fontSize: 17,
+  fontWeight: 600,
+  letterSpacing: '-0.3px',
+  color: colors.ink,
+  margin: '2px 0 10px',
+  fontFamily: font.family,
+};
+const sectionAccentDot: React.CSSProperties = {
+  width: 6, height: 6, borderRadius: '50%', background: colors.lightOrange, display: 'inline-block',
+};
 const btnStyle: React.CSSProperties = { padding: '8px 14px', cursor: 'pointer' };
 
 interface CustomerDetail {
@@ -383,7 +409,8 @@ export default function CustomerDetailPage() {
             </section>
 
             <section style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
-              <h2 style={{ fontSize: 15, marginTop: 0 }}>⭐ 관심 성분 — 성분 마스터에서 선택 (이슈 #16)</h2>
+              <div style={sectionEyebrow('INTERESTS')}><span style={sectionAccentDot} />관심 성분</div>
+<h2 style={{ ...sectionTitle }}>성분 마스터에서 선택해 지정합니다</h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {master.map((ing) => (
                   <label key={ing.id} style={{ fontSize: 13, border: '1px solid #cbd5e1', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', userSelect: 'none' }}>
@@ -401,7 +428,8 @@ export default function CustomerDetailPage() {
             </section>
 
             <section style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
-              <h2 style={{ fontSize: 15, marginTop: 0 }}>🧭 성분 갭 — 관심 성분 커버리지 (이슈 #16)</h2>
+              <div style={sectionEyebrow('GAP')}><span style={sectionAccentDot} />성분 갭</div>
+<h2 style={{ ...sectionTitle }}>관심 성분 커버리지와 근거</h2>
               {gap && (
                 <>
                   <p style={{ margin: '4px 0', fontSize: 13, color: '#475569' }}>
@@ -449,7 +477,8 @@ export default function CustomerDetailPage() {
             </section>
 
             <section style={{ marginBottom: 24 }}>
-              <h2 style={{ fontSize: 16 }}>💊 섭취 제품 ({intakes.length}건)</h2>
+              <div style={sectionEyebrow('INTAKE PRODUCTS')}><span style={sectionAccentDot} />섭취 제품</div>
+<h2 style={{ ...sectionTitle }}>연결된 섭취 제품 ({intakes.length}건)</h2>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {intakes.map((p) => (
                   <li key={p.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, marginBottom: 8 }}>
@@ -475,7 +504,8 @@ export default function CustomerDetailPage() {
             </section>
 
             <section style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
-              <h2 style={{ fontSize: 15, marginTop: 0 }}>품목제조신고 제품 검색 → 연결</h2>
+              <div style={sectionEyebrow('SEARCH & LINK')}><span style={sectionAccentDot} />품목제조신고 연결</div>
+<h2 style={{ ...sectionTitle }}>검색 후 연결</h2>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input style={{ ...inputStyle, marginBottom: 0 }} placeholder="제품명 검색 (예: 유산균)"
                   value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -505,7 +535,8 @@ export default function CustomerDetailPage() {
 
             <section style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: 15, margin: 0 }}>💡 성분 갭 기반 추천 제안</h2>
+                <div style={sectionEyebrow('RECOMMENDATIONS')}><span style={sectionAccentDot} />추천 제안</div>
+<h2 style={{ ...sectionTitle }}>성분 갭 기반 추천 제안</h2>
                 <button onClick={() => { void generateRecommendations(); }} disabled={recommendationBusy}
                   style={{ padding: '6px 12px', cursor: 'pointer', borderRadius: 6, fontSize: 13 }}>
                   추천 생성
@@ -551,7 +582,8 @@ export default function CustomerDetailPage() {
             </section>
 
             <section style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
-              <h2 style={{ fontSize: 15, marginTop: 0 }}>수동 등록(식약처 미수록 제품)</h2>
+              <div style={sectionEyebrow('MANUAL REGISTER')}><span style={sectionAccentDot} />수동 등록</div>
+<h2 style={{ ...sectionTitle }}>식약처 미수록 제품 등록</h2>
               <input style={inputStyle} placeholder="제품명 (필수)" value={manual.productName}
                 onChange={(e) => setManual({ ...manual, productName: e.target.value })} />
               <input style={inputStyle} placeholder="원료 (선택)" value={manual.rawMaterials}
@@ -562,7 +594,8 @@ export default function CustomerDetailPage() {
             </section>
 
             <section style={{ marginBottom: 8 }}>
-              <h2 style={{ fontSize: 15, marginTop: 0 }}>고객 정보 수정</h2>
+              <div style={sectionEyebrow('EDIT CUSTOMER')}><span style={sectionAccentDot} />고객 정보 수정</div>
+<h2 style={{ ...sectionTitle }}>고객 정보 수정</h2>
               <input style={inputStyle} placeholder="이름" value={edit.name}
                 onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
               <input style={inputStyle} placeholder="연락처" value={edit.phone}

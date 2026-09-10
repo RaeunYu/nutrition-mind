@@ -71,7 +71,8 @@ export default function AdminPage() {
 
         <section style={{ ...cardStyle, marginTop: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: 16, margin: 0 }}>접근 로그 — 고객 개인정보 열람 기록</h2>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: '#696969', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F37338', display: 'inline-block' }} />접근 로그</div>
+            <h2 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.3px', margin: '2px 0 10px' }}>고객 개인정보 열람 기록</h2>
             <button onClick={() => { void reload(); }} style={{ padding: '6px 12px', cursor: 'pointer', borderRadius: 20, border: '1.5px solid #141413', background: '#FCFBFA' }}>
               새로고침
             </button>

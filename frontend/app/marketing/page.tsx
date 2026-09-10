@@ -5,10 +5,24 @@ import Link from 'next/link';
 import WorkspaceHeader from '../_components/workspace-header';
 import Spinner from '../_components/spinner';
 import { BACKEND, ROLE_HOME, getAuth, type Auth } from '../../lib/auth';
-import { colors, pageContainer, btnPrimary, btnSecondary } from '../../lib/design';
+import { colors, font, pageContainer, btnPrimary, btnSecondary } from '../../lib/design';
 
 const inputStyle: React.CSSProperties = { display: 'block', width: '100%', padding: 10, marginBottom: 8, boxSizing: 'border-box' };
 const btnStyle: React.CSSProperties = { padding: '10px 16px', cursor: 'pointer' };
+
+/** DESIGN.md 아이브브라우(마케팅 화면용) — 액센트 점 + 대문자 트래킹. */
+const mktEyebrow: React.CSSProperties = {
+  fontSize: 12, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase',
+  color: colors.slateGray, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10,
+  fontFamily: font.family,
+};
+const mktDot: React.CSSProperties = {
+  width: 6, height: 6, borderRadius: '50%', background: colors.lightOrange, display: 'inline-block',
+};
+const mktTitle: React.CSSProperties = {
+  fontSize: 17, fontWeight: 600, letterSpacing: '-0.3px', color: colors.ink,
+  margin: '2px 0 10px', fontFamily: font.family,
+};
 
 interface Citation {
   law_name: string;
@@ -108,7 +122,8 @@ export default function MarketingPage() {
         </p>
 
         <section style={{ marginTop: 20, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
-          <h2 style={{ fontSize: 15, marginTop: 0 }}>✍️ 문구 검증</h2>
+          <div style={mktEyebrow}><span style={mktDot} />문구 검증</div>
+          <h2 style={{ ...mktTitle }}>표시·광고 문구 사전검증</h2>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -154,7 +169,8 @@ export default function MarketingPage() {
         </section>
 
         <section style={{ marginTop: 24, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
-          <h2 style={{ fontSize: 15, marginTop: 0 }}>🔍 기능성·원료 리서치</h2>
+          <div style={mktEyebrow}><span style={mktDot} />리서치</div>
+          <h2 style={{ ...mktTitle }}>기능성·원료 조회</h2>
           <div style={{ display: 'flex', gap: 8 }}>
             <select value={researchField} onChange={(e) => setResearchField(e.target.value as 'rawMaterial' | 'product')} style={{ ...inputStyle, marginBottom: 0 }}>
               <option value="rawMaterial">원료명으로 검색</option>
