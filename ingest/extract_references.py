@@ -74,9 +74,11 @@ def main() -> None:
                     )
                     created += cur.rowcount
 
-            # 2) 인용 엣지: 「법령명」 제N조
+            # 2) 인용 엣지: 「법령명」 제N조(의M) — 조문 표기("제10조의2")를 DB article_no
+            #    형식("10의2")으로 정규화해 매칭한다(이슈 #22: 가지번호 불일치 결함 수정).
             for m in CITE_RE.finditer(text):
                 cited_law_raw, cited_article = m.group(1).strip(), m.group(2).strip()
+                cited_article = re.sub(r"^제", "", cited_article).replace("조", "", 1) if cited_article.startswith("제") else cited_article
                 cited_law = NAME_ALIASES.get(cited_law_raw, cited_law_raw)
                 if cited_law == law_name:
                     continue
