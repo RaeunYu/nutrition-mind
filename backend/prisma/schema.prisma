@@ -118,6 +118,7 @@ model Customer {
   ingredients CustomerIngredient[]
   accessLogs  AccessLog[]
   intakeProducts CustomerProduct[]
+  interests      CustomerInterest[]
 
   @@map("customers")
 }
@@ -164,4 +165,31 @@ model AccessLog {
   @@index([accessedAt(sort: Desc)])
   @@index([customerId])
   @@map("access_logs")
+}
+
+/// 성분 마스터 (이슈 #16) — 표준 성분명 + 동의어·키워드(쉼표 구분 텍스트).
+/// 용어: 성분(표준화된 성분명) ≠ 원료(식약처 원재료명 텍스트) — 성분/원료 혼용 금지(CONTEXT.md).
+/// 키워드 규칙 매핑은 서비스 레이어(ingredient-mapping.service)가 담당 — DB 인덱스 불필요.
+model Ingredient {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique
+  synonyms  String?
+  keywords  String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  interests CustomerInterest[]
+
+  @@map("ingredients")
+}
+
+/// 관심 성분 (이슈 #16) — 담당자가 고객별로 지정한 목표 성분. (customer_id, ingredient_id) 유니크.
+model CustomerInterest {
+  customerId   String @map("customer_id") @db.Uuid
+  ingredientId String @map("ingredient_id") @db.Uuid
+
+  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([customerId, ingredientId])
+  @@map("customer_interests")
 }

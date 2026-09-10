@@ -14,7 +14,9 @@
     "test:crypto": "tsx test/crypto.test.mjs",
     "test:customers": "node test/customers.test.mjs",
     "test:access-log": "node test/access-log.test.mjs",
-    "test:customer-products": "node test/customer-products.test.mjs"
+    "test:customer-products": "node test/customer-products.test.mjs",
+    "test:mapping": "tsx test/ingredient-mapping.test.mjs",
+    "test:gap": "node test/customer-gap.test.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.1",

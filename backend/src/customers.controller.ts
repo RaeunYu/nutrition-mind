@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -17,6 +18,12 @@ import { Roles } from './roles.decorator';
 import { PrismaService } from './prisma.service';
 import { CryptoService } from './crypto.service';
 import { AccessLogService } from './access-log.service';
+import {
+  IngredientMappingService,
+  MaterialInput,
+  IngredientRule,
+  InterestRef,
+} from './ingredient-mapping.service';
 
 /**
  * 고객 API (ADR-0002, 이슈 #13).
@@ -48,6 +55,7 @@ export class CustomersController {
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly accessLog: AccessLogService,
+    private readonly mapping: IngredientMappingService,
   ) {}
 
   /** 고객 목록 — 개인식별 필드 마스킹(이름 첫 글자 + '**', 연락처 뒤 4자리, 이메일 도메인). */
@@ -108,6 +116,7 @@ export class CustomersController {
     await this.accessLog.record(req.user ?? {}, id); // 개인정보 노출 화면 접근 기록(총관리자 열람 — 이슈 #14)
     const dek = this.crypto.unwrapDek(row.keySlot);
     const intakeProducts = await this.listIntakeProducts(id);
+    const interests = await this.listInterests(id);
     return {
       id: row.id,
       name: this.crypto.decryptField(row.nameEnc, dek),
@@ -117,6 +126,7 @@ export class CustomersController {
       ingredients: row.ingredients
         .map((ci) => ci.ingredientName)
         .sort((a, b) => a.localeCompare(b, 'ko')),
+      interests,
       intakeProducts,
     };
   }
@@ -200,6 +210,103 @@ export class CustomersController {
     });
     if (deleted.count === 0) throw new NotFoundException('섭취 제품을 찾을 수 없습니다.');
     return { removed: true };
+  }
+
+  /**
+   * 관심 성분 지정·변경 (이슈 #16) — 전체 교체(세트) 의미론: 요청한 성분 집합으로 갱신.
+   * body { ingredientIds: string[] } — 존재하지 않는 성분 id가 포함되면 404.
+   * 빈 배열은 관심 성분 전체 해제로 처리한다.
+   */
+  @Put(':id/interests')
+  async setInterests(@Param('id') id: string, @Body() body: SetInterestsBody) {
+    await this.ensureCustomer(id);
+    const b = (body ?? {}) as Record<string, unknown>;
+    if (!Array.isArray(b.ingredientIds)) {
+      throw new BadRequestException('ingredientIds는 배열로 입력하세요.');
+    }
+    const ids: string[] = [];
+    for (const v of b.ingredientIds) {
+      if (typeof v !== 'string' || v.trim().length === 0) {
+        throw new BadRequestException('ingredientIds 항목은 성분 id 문자열이어야 합니다.');
+      }
+      const trimmed = v.trim();
+      if (!ids.includes(trimmed)) ids.push(trimmed);
+    }
+    if (ids.length > 50) {
+      throw new BadRequestException('관심 성분은 최대 50개까지 지정할 수 있습니다.');
+    }
+    const found = await this.prisma.ingredient.findMany({ where: { id: { in: ids } } });
+    if (found.length !== ids.length) {
+      throw new NotFoundException('존재하지 않는 성분이 포함되어 있습니다.');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.customerInterest.deleteMany({ where: { customerId: id } });
+      if (ids.length > 0) {
+        await tx.customerInterest.createMany({
+          data: ids.map((ingredientId) => ({ customerId: id, ingredientId })),
+        });
+      }
+    });
+    const interests = await this.listInterests(id);
+    return { interests, replaced: true };
+  }
+
+  /**
+   * 성분 갭 (이슈 #16) — 관심 성분 중 섭취 제품으로 커버되지 않는 성분(CONTEXT.md: 성분 갭).
+   * 커버 판정 원천: ① 섭취 제품 원료명 텍스트의 키워드 규칙 매핑 ② 수동 성분(customer_ingredients,
+   * evidence.source='manual_ingredient' 라벨로 구분). 매핑 실패 원료 목록도 함께 반환한다.
+   * 제품·성분 정보는 개인정보가 아니므로 접근 로그를 남기지 않는다(ADR-0002는 개인식별 필드 대상).
+   */
+  @Get(':id/gap')
+  async gap(@Param('id') id: string) {
+    await this.ensureCustomer(id);
+    const [interestRows, intakeRows, manualRows, rules] = await Promise.all([
+      this.prisma.customerInterest.findMany({
+        where: { customerId: id },
+        include: { ingredient: true },
+        orderBy: { ingredient: { createdAt: 'asc' } },
+      }),
+      this.prisma.customerProduct.findMany({
+        where: { customerId: id },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.customerIngredient.findMany({ where: { customerId: id } }),
+      this.prisma.ingredient.findMany({ orderBy: { createdAt: 'asc' } }),
+    ]);
+
+    const ruleList: IngredientRule[] = rules.map((r) => ({
+      id: r.id,
+      name: r.name,
+      synonyms: r.synonyms,
+      keywords: r.keywords,
+    }));
+    const inputs: MaterialInput[] = [
+      ...intakeRows.map((p) => ({
+        productName: p.productName,
+        rawMaterialText: p.rawMaterials,
+        source: 'intake_product' as const,
+      })),
+      ...manualRows.map((m) => ({
+        productName: null,
+        rawMaterialText: m.ingredientName,
+        source: 'manual_ingredient' as const,
+      })),
+    ];
+    const interests: InterestRef[] = interestRows.map((r) => ({
+      ingredientId: r.ingredientId,
+      name: r.ingredient.name,
+    }));
+    return this.mapping.buildGapView(inputs, ruleList, interests);
+  }
+
+  /** 관심 성분 목록 — 마스터 등록 순(갭 응답과 같은 순서). */
+  private async listInterests(customerId: string) {
+    const rows = await this.prisma.customerInterest.findMany({
+      where: { customerId },
+      include: { ingredient: true },
+      orderBy: { ingredient: { createdAt: 'asc' } },
+    });
+    return rows.map((r) => ({ ingredientId: r.ingredientId, name: r.ingredient.name }));
   }
 
   /** 고객 수정 — 기존 DEK(key_slot unwrap)로 변경 필드를 재암호화. 응답도 복호화 값을 포함하므로 접근을 기록한다. */
@@ -342,6 +449,11 @@ interface AddIntakeProductBody {
   productName?: string;
   rawMaterials?: string;
   functionality?: string;
+}
+
+/** 관심 성분 지정 요청 본문 (이슈 #16). */
+interface SetInterestsBody {
+  ingredientIds?: string[];
 }
 
 /** 이름 마스킹 — 첫 글자 + '**' (예: 김건강 → 김**). */

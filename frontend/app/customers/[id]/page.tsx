@@ -15,7 +15,43 @@ interface CustomerDetail {
   email: string | null;
   memo: string | null;
   ingredients: string[];
+  interests: InterestItem[];
   intakeProducts: IntakeProduct[];
+}
+
+/** 성분 마스터 (이슈 #16) — GET /ingredients. */
+interface IngredientMaster {
+  id: string;
+  name: string;
+  synonyms: string | null;
+  keywords: string | null;
+}
+
+interface InterestItem {
+  ingredientId: string;
+  name: string;
+}
+
+/** 매핑 근거 — 어떤 키워드가 어느 원료 텍스트에서 매칭됐는지(수동 성분은 source 라벨로 구분). */
+interface GapEvidence {
+  productName: string | null;
+  matchedKeyword: string;
+  rawMaterialText: string;
+  source: 'intake_product' | 'manual_ingredient';
+}
+
+interface GapInterest {
+  ingredientId: string;
+  name: string;
+  covered: boolean;
+  evidence: GapEvidence[];
+}
+
+/** 성분 갭 응답 (이슈 #16) — GET /customers/:id/gap. */
+interface GapResponse {
+  interests: GapInterest[];
+  gap: { ingredientId: string; name: string }[];
+  unmappedMaterials: { productName: string | null; rawMaterialText: string }[];
 }
 
 interface IntakeProduct {
@@ -37,8 +73,9 @@ interface SearchResult {
 }
 
 /**
- * 고객 상세 — 영업·상담 담당자용 (이슈 #13·#15).
+ * 고객 상세 — 영업·상담 담당자용 (이슈 #13·#15·#16).
  * 상단: 개인식별 필드 복호화 표시·수정(ADR-0002, 접근 기록은 #14).
+ * 중단: 관심 성분 지정(성분 마스터 선택) + 성분 갭 카드(커버 근거·미커버 목록·매핑 실패 원료) — 이슈 #16.
  * 하단: 섭취 제품 관리 — 품목제조신고 검색 연결 또는 수동 등록(이슈 #15).
  */
 export default function CustomerDetailPage() {
@@ -58,6 +95,13 @@ export default function CustomerDetailPage() {
   const [manual, setManual] = useState({ productName: '', rawMaterials: '', functionality: '' });
   const [intakeMessage, setIntakeMessage] = useState('');
   const [intakeBusy, setIntakeBusy] = useState(false);
+
+  // 관심 성분·성분 갭 (이슈 #16)
+  const [master, setMaster] = useState<IngredientMaster[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [gap, setGap] = useState<GapResponse | null>(null);
+  const [interestMessage, setInterestMessage] = useState('');
+  const [interestBusy, setInterestBusy] = useState(false);
 
   useEffect(() => {
     const a = getAuth();
@@ -81,6 +125,7 @@ export default function CustomerDetailPage() {
       setCustomer(data);
       setEdit({ name: data.name ?? '', phone: data.phone ?? '', email: data.email ?? '', memo: data.memo ?? '' });
       setIntakes(data.intakeProducts ?? []);
+      setSelected((data.interests ?? []).map((i) => i.ingredientId)); // 저장된 관심 성분 기준(재로드 시 갱신)
       setError('');
     } catch (e) {
       setError('상세 조회 실패: ' + String(e));
@@ -88,6 +133,59 @@ export default function CustomerDetailPage() {
   }, [auth, params?.id]);
 
   useEffect(() => { void reload(); }, [reload]);
+
+  // 성분 마스터 목록(관심 성분 선택 UI 소스) — 이슈 #16
+  const loadMaster = useCallback(async () => {
+    if (!auth) return;
+    try {
+      const res = await fetch(`${BACKEND}/ingredients`, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      if (res.ok) setMaster(await res.json());
+    } catch {
+      setMaster([]);
+    }
+  }, [auth]);
+  useEffect(() => { void loadMaster(); }, [loadMaster]);
+
+  // 성분 갭 조회(이슈 #16) — 관심 성분 변경·섭취 제품 변경 후 재조회
+  const loadGap = useCallback(async () => {
+    if (!auth || !params?.id) return;
+    try {
+      const res = await fetch(`${BACKEND}/customers/${params.id}/gap`, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      setGap(res.ok ? await res.json() : null);
+    } catch {
+      setGap(null);
+    }
+  }, [auth, params?.id]);
+  useEffect(() => { void loadGap(); }, [loadGap]);
+
+  function toggleInterest(id: string) {
+    setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  }
+
+  async function saveInterests() {
+    if (!auth || !params?.id) return;
+    setInterestBusy(true); setInterestMessage('');
+    try {
+      const res = await fetch(`${BACKEND}/customers/${params.id}/interests`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.accessToken}` },
+        body: JSON.stringify({ ingredientIds: selected }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setInterestMessage(data?.message ?? '저장 실패');
+      } else {
+        setInterestMessage(`저장 완료 — 관심 성분 ${data.interests?.length ?? 0}개`);
+        await loadGap(); // 관심 성분 변경 직후 갭 카드 갱신
+      }
+    } catch (e) {
+      setInterestMessage('저장 실패: ' + String(e));
+    } finally { setInterestBusy(false); }
+  }
 
   async function save() {
     if (!auth || !params?.id) return;
@@ -147,6 +245,7 @@ export default function CustomerDetailPage() {
       } else {
         setIntakeMessage(`연결 완료: ${data.productName}`);
         await reload();
+        await loadGap();
       }
     } catch (e) {
       setIntakeMessage('연결 실패: ' + String(e));
@@ -170,6 +269,7 @@ export default function CustomerDetailPage() {
         setIntakeMessage(`등록 완료: ${data.productName}`);
         setManual({ productName: '', rawMaterials: '', functionality: '' });
         await reload();
+        await loadGap();
       }
     } catch (e) {
       setIntakeMessage('등록 실패: ' + String(e));
@@ -187,6 +287,7 @@ export default function CustomerDetailPage() {
       if (res.ok) {
         setIntakeMessage('제거 완료');
         await reload();
+        await loadGap();
       } else {
         setIntakeMessage('제거 실패');
       }
@@ -214,6 +315,72 @@ export default function CustomerDetailPage() {
               <p style={{ margin: '4px 0' }}><strong>이메일:</strong> {customer.email ?? '—'}</p>
               <p style={{ margin: '4px 0' }}><strong>메모:</strong> {customer.memo ?? '—'}</p>
               <p style={{ margin: '4px 0' }}><strong>성분:</strong> {customer.ingredients.join(', ') || '—'}</p>
+            </section>
+
+            <section style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
+              <h2 style={{ fontSize: 15, marginTop: 0 }}>⭐ 관심 성분 — 성분 마스터에서 선택 (이슈 #16)</h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {master.map((ing) => (
+                  <label key={ing.id} style={{ fontSize: 13, border: '1px solid #cbd5e1', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', userSelect: 'none' }}>
+                    <input type="checkbox" checked={selected.includes(ing.id)} onChange={() => toggleInterest(ing.id)} />
+                    {' '}{ing.name}
+                    {ing.synonyms && <span style={{ color: '#94a3b8', fontSize: 11 }}> ({ing.synonyms})</span>}
+                  </label>
+                ))}
+                {master.length === 0 && <span style={{ color: '#94a3b8', fontSize: 13 }}>성분 마스터가 비어 있습니다.</span>}
+              </div>
+              <button onClick={() => { void saveInterests(); }} disabled={interestBusy} style={{ marginTop: 10, ...btnStyle }}>
+                {interestBusy ? '저장 중…' : `관심 성분 저장 (${selected.length}개 선택)`}
+              </button>
+              {interestMessage && <p style={{ color: '#334155', fontSize: 13 }}>{interestMessage}</p>}
+            </section>
+
+            <section style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
+              <h2 style={{ fontSize: 15, marginTop: 0 }}>🧭 성분 갭 — 관심 성분 커버리지 (이슈 #16)</h2>
+              {gap && (
+                <>
+                  <p style={{ margin: '4px 0', fontSize: 13, color: '#475569' }}>
+                    관심 성분 {gap.interests.length}개 중 커버 {gap.interests.filter((i) => i.covered).length}개 · 미커버(갭) {gap.gap.length}개
+                  </p>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {gap.interests.map((i) => (
+                      <li key={i.ingredientId} style={{ padding: 8, borderBottom: '1px solid #f1f5f9' }}>
+                        <strong style={{ fontSize: 13 }}>{i.name}</strong>{' '}
+                        <span style={{
+                          fontSize: 11, padding: '2px 8px', borderRadius: 999,
+                          background: i.covered ? '#dcfce7' : '#fee2e2', color: '#1e293b',
+                        }}>
+                          {i.covered ? '커버됨' : '미커버(갭)'}
+                        </span>
+                        {i.covered && (
+                          <div style={{ marginTop: 4, fontSize: 12, color: '#475569' }}>
+                            {i.evidence.map((e, idx) => (
+                              <div key={idx}>
+                                {e.source === 'manual_ingredient'
+                                  ? `수동 성분: ${e.rawMaterialText} — 키워드「${e.matchedKeyword}」`
+                                  : `${e.productName} — 키워드「${e.matchedKeyword}」(원료: ${e.rawMaterialText.slice(0, 80)}${e.rawMaterialText.length > 80 ? '…' : ''})`}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                    {gap.interests.length === 0 && <li style={{ color: '#94a3b8', fontSize: 13 }}>관심 성분을 먼저 지정하세요.</li>}
+                  </ul>
+                  {gap.unmappedMaterials.length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <p style={{ margin: '4px 0', fontSize: 13, fontWeight: 600 }}>
+                        매핑 실패 원료 ({gap.unmappedMaterials.length}건) — 성분 마스터 키워드 규칙에 해당 없음
+                      </p>
+                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#475569' }}>
+                        {gap.unmappedMaterials.map((m, idx) => (
+                          <li key={idx}>{m.productName}: {m.rawMaterialText.slice(0, 100)}{m.rawMaterialText.length > 100 ? '…' : ''}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              )}
             </section>
 
             <section style={{ marginBottom: 24 }}>

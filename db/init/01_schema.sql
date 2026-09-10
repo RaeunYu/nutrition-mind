@@ -122,3 +122,22 @@ CREATE TABLE customer_products (
 );
 CREATE INDEX idx_customer_products_customer ON customer_products (customer_id);
 CREATE UNIQUE INDEX idx_customer_products_link ON customer_products (customer_id, api_code, report_no) WHERE source = 'foodsafety';
+
+-- 성분 마스터 (이슈 #16): 표준 성분명 + 동의어·키워드(쉼표 구분) — 원료명 키워드 규칙 매핑의 기준
+-- 용어: 성분(표준화된 성분명) ≠ 원료(식약처 원재료명 텍스트) — CONTEXT.md, 성분/원료 혼용 금지
+CREATE TABLE ingredients (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       text NOT NULL UNIQUE,   -- 표준 성분명(예: 비타민D)
+  synonyms   text,                   -- 동의어(쉼표 구분, 예: 콜레칼시페롤)
+  keywords   text,                   -- 원료명 매칭용 키워드(쉼표 구분, 예: 유산균,비피두스)
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 관심 성분 (이슈 #16): 담당자가 고객별로 지정한 목표 성분 집합 — (고객, 성분) 유니크
+CREATE TABLE customer_interests (
+  customer_id   uuid NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  ingredient_id uuid NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (customer_id, ingredient_id)
+);
+CREATE INDEX idx_customer_interests_ingredient ON customer_interests (ingredient_id);

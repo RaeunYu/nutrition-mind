@@ -66,6 +66,33 @@ const DEMO_CUSTOMERS_PII: Array<{
 ];
 
 /**
+ * 성분 마스터 초기 시딩 (이슈 #16) — 기존 고객 시딩 성분명 13종 + 확장 성분 4종(비타민A·콜라겐·멜라토닌·루테인).
+ * synonyms·keywords는 쉼표 구분 텍스트. keywords는 원료명(식약처 원재료명) 매칭용이며
+ * 매칭 시 성분명+동의어+키워드를 모두 사용한다(ingredient-mapping.service).
+ * 키워드는 긴 형태 우선 나열(예: 비타민b12 → 비타민b1) — 부분일치 매칭에서 짧은 키워드 선매칭 방지.
+ * 용어 주의: 성분(표준 성분명) ≠ 원료(식약처 원재료명 텍스트) — 혼용 금지(CONTEXT.md).
+ */
+const INGREDIENT_MASTER: Array<{ name: string; synonyms: string; keywords: string }> = [
+  { name: "비타민D", synonyms: "비타민D3,콜레칼시페롤", keywords: "비타민d3,콜레칼시페롤" },
+  { name: "오메가3", synonyms: "오메가-3", keywords: "DHA,EPA,어유,생선기름" },
+  { name: "마그네슘", synonyms: "", keywords: "" },
+  { name: "프로폴리스", synonyms: "브라질프로폴리스", keywords: "프로폴리스추출물,브라질프로폴리스" },
+  { name: "아연", synonyms: "글루콘산아연", keywords: "zinc,글루콘산아연" },
+  { name: "비타민C", synonyms: "아스코르브산", keywords: "아스코르브산" },
+  { name: "키토산", synonyms: "", keywords: "" },
+  { name: "가르시니아", synonyms: "가르시니아캄보지아", keywords: "가르시니아캄보지아,캄보지아" },
+  { name: "프로바이오틱스", synonyms: "유산균", keywords: "유산균,비피두스,락토바실러스" },
+  { name: "엽산", synonyms: "", keywords: "" },
+  { name: "철분", synonyms: "", keywords: "iron,퓨마산철,환원철" },
+  { name: "비타민B군", synonyms: "", keywords: "비타민b복합체,비타민b12,비타민b6,비타민b1,비타민b2,니아신,판토텐산" },
+  { name: "비타민A", synonyms: "레티놀", keywords: "베타카로틴,레티놀" },
+  { name: "칼슘", synonyms: "", keywords: "calcium,젖산칼슘" },
+  { name: "콜라겐", synonyms: "콜라겐펩타드", keywords: "콜라겐펩타드,해양콜라겐,피쉬콜라겐" },
+  { name: "멜라토닌", synonyms: "", keywords: "" },
+  { name: "루테인", synonyms: "", keywords: "마리골드" },
+];
+
+/**
  * 암호화 저장으로 인해 DB UNIQUE·검색이 불가하므로, 복호화 비교로 기존 고객을 찾는다(멱등 시딩 기준).
  * 고객 수가 적은 데모 범위에서만 사용하는 O(n) 탐색이다.
  */
@@ -112,6 +139,16 @@ async function fillMissingPii(customerId: string, c: { phone: string; email: str
 }
 
 async function main() {
+  // 성분 마스터 (이슈 #16) — 멱등 upsert(갱신 시 synonyms·keywords 정규화)
+  for (const ing of INGREDIENT_MASTER) {
+    await prisma.ingredient.upsert({
+      where: { name: ing.name },
+      update: { synonyms: ing.synonyms, keywords: ing.keywords },
+      create: { name: ing.name, synonyms: ing.synonyms, keywords: ing.keywords },
+    });
+  }
+  console.log(`✅ 성분 마스터 시딩: ${INGREDIENT_MASTER.length}종`);
+
   for (const { roleId, label } of DEMO_ROLES) {
     await prisma.role.upsert({
       where: { roleId },

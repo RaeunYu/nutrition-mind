@@ -5,6 +5,7 @@ import { HealthController } from './health.controller';
 import { AuthController } from './auth.controller';
 import { ChatController } from './chat.controller';
 import { CustomersController } from './customers.controller';
+import { IngredientsController } from './ingredients.controller';
 import { ProductsController } from './products.controller';
 import { AdminController } from './admin.controller';
 import { PrismaModule } from './prisma.module';
@@ -12,6 +13,7 @@ import { LlmService } from './llm.service';
 import { ProductsService } from './products.service';
 import { CryptoService } from './crypto.service';
 import { AccessLogService } from './access-log.service';
+import { IngredientMappingService } from './ingredient-mapping.service';
 
 @Module({
   imports: [
@@ -23,7 +25,7 @@ import { AccessLogService } from './access-log.service';
       signOptions: { expiresIn: '1h' },
     }),
   ],
-  controllers: [HealthController, AuthController, ChatController, CustomersController, ProductsController, AdminController],
-  providers: [LlmService, ProductsService, CryptoService, AccessLogService],
+  controllers: [HealthController, AuthController, ChatController, CustomersController, IngredientsController, ProductsController, AdminController],
+  providers: [LlmService, ProductsService, CryptoService, AccessLogService, IngredientMappingService],
 })
 export class AppModule {}
