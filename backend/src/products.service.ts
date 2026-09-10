@@ -12,6 +12,8 @@ export interface ProductSearchItem {
   intakeNote: string | null;
   reportNo: string | null;
   apiCode: string;
+  manufacturerName: string | null;
+  productionEnded: string | null;
 }
 
 /** 검색 응답 — 페이지네이션 메타 + 결과 목록 */
@@ -71,9 +73,11 @@ export class ProductsService {
         intake_note: string | null;
         report_no: string | null;
         api_code: string;
+        manufacturer_name: string | null;
+        production_ended: string | null;
       }>
     >(
-      `SELECT product_name, raw_material_name, functionality_text, intake_note, report_no, api_code
+      `SELECT product_name, raw_material_name, functionality_text, intake_note, report_no, api_code, manufacturer_name, production_ended
        FROM foodsafety_rows
        WHERE ${whereSql}
        ORDER BY ${column} ASC, id ASC
@@ -101,6 +105,8 @@ export class ProductsService {
         intakeNote: r.intake_note,
         reportNo: r.report_no,
         apiCode: r.api_code,
+        manufacturerName: r.manufacturer_name,
+        productionEnded: r.production_ended,
       })),
     };
   }

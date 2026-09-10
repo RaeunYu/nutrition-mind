@@ -361,8 +361,9 @@ export class CustomersController {
       const patterns = keywords.slice(0, 4).map((k) => `%${k}%`);
       const rows = await this.prisma.$queryRawUnsafe<Array<{
         api_code: string; report_no: string | null; product_name: string; raw_material_name: string | null;
+        manufacturer_name: string | null; production_ended: string | null;
       }>>(
-        `SELECT api_code, report_no, product_name, raw_material_name
+        `SELECT api_code, report_no, product_name, raw_material_name, manufacturer_name, production_ended
          FROM foodsafety_rows
          WHERE api_code = 'I0030' AND raw_material_name ILIKE ANY($1::text[])
          ORDER BY product_name
@@ -378,6 +379,8 @@ export class CustomersController {
           reportNo: row.report_no,
           productName: row.product_name,
           rawMaterials: row.raw_material_name,
+          manufacturerName: row.manufacturer_name,
+          productionEnded: row.production_ended,
         });
       }
     }
@@ -395,6 +398,8 @@ export class CustomersController {
             reportNo: draft.reportNo,
             productName: draft.productName,
             rawMaterials: draft.rawMaterials,
+            manufacturerName: draft.manufacturerName,
+            productionEnded: draft.productionEnded,
             ingredientName: draft.ingredientName,
             evidenceKeyword: draft.evidenceKeyword,
             status: 'proposed',
@@ -404,6 +409,7 @@ export class CustomersController {
         items.push({
           id: row.id, ingredientName: row.ingredientName, apiCode: row.apiCode,
           reportNo: row.reportNo, productName: row.productName,
+          manufacturerName: row.manufacturerName, productionEnded: row.productionEnded,
           evidenceKeyword: row.evidenceKeyword, evidenceRawMaterial: draft.evidenceRawMaterial,
           status: row.status,
         });
@@ -415,7 +421,7 @@ export class CustomersController {
               customerId: id, ingredientId: draft.ingredientId,
               apiCode: draft.apiCode, reportNo: draft.reportNo,
             },
-            data: { ingredientName: draft.ingredientName, evidenceKeyword: draft.evidenceKeyword },
+            data: { ingredientName: draft.ingredientName, evidenceKeyword: draft.evidenceKeyword, manufacturerName: draft.manufacturerName, productionEnded: draft.productionEnded },
           });
           continue;
         }
@@ -443,6 +449,7 @@ export class CustomersController {
         id: r.id, ingredientName: r.ingredientName, evidenceKeyword: r.evidenceKeyword,
         ingredientId: r.ingredientId, apiCode: r.apiCode, reportNo: r.reportNo,
         productName: r.productName, rawMaterials: r.rawMaterials,
+        manufacturerName: r.manufacturerName, productionEnded: r.productionEnded,
         status: r.status, decidedAt: r.decidedAt,
       })),
     };

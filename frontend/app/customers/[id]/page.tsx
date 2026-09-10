@@ -71,6 +71,8 @@ interface RecommendationItem {
   ingredientName: string;
   apiCode: string | null;
   productName: string;
+  manufacturerName: string | null;
+  productionEnded: string | null;
   reportNo: string | null;
   evidenceKeyword: string;
   evidenceRawMaterial: string;
@@ -528,9 +530,15 @@ export default function CustomerDetailPage() {
                   <p style={{ margin: '4px 0 0', fontSize: 12, color: '#475569' }}>
                     근거: 관심 성분 <strong>{r.ingredientName}</strong> 을 키워드 "{r.evidenceKeyword}" 로 커버
                   </p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>
-                    {r.apiCode} · {r.reportNo}
-                  </p>
+                  <div style={{ margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>{r.apiCode} · {r.reportNo}</span>
+                    {r.productionEnded === '예' && (
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: '#fee2e2', color: '#991b1b', fontWeight: 700 }}>
+                        생산종료
+                      </span>
+                    )}
+                  </div>
+                  {r.manufacturerName && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#475569' }}>업소명: {r.manufacturerName}</p>}
                   {r.status === 'proposed' && (
                     <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
                       <button onClick={() => { void decide(r.id, 'accepted'); }} disabled={recommendationBusy} style={{ ...btnPrimary, fontSize: 12, padding: '4px 10px' }}>수용</button>

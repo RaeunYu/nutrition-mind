@@ -24,6 +24,8 @@ export interface FoodSafetyCandidate {
   reportNo: string | null;
   productName: string;
   rawMaterials: string | null;
+  manufacturerName: string | null;
+  productionEnded: string | null;
 }
 
 /** 생성된 제안 초안(저장 전). */
@@ -34,6 +36,8 @@ export interface ProposalDraft {
   reportNo: string | null;
   productName: string;
   rawMaterials: string | null;
+  manufacturerName: string | null;
+  productionEnded: string | null;
   evidenceKeyword: string;
   evidenceRawMaterial: string;
 }
@@ -81,6 +85,8 @@ export function buildProposals(
         reportNo: candidate.reportNo,
         productName: candidate.productName,
         rawMaterials: candidate.rawMaterials,
+        manufacturerName: candidate.manufacturerName,
+        productionEnded: candidate.productionEnded,
         evidenceKeyword: keyword.original,
         evidenceRawMaterial: candidate.rawMaterials ?? '',
       });
