@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 
-/** 검색 대상 필드: 제품명(product) | 원료명(rawMaterial) — 품목제조신고 제품(이슈 #12) */
+/** 검색 대상 필드: 제품명(product) | 원료명(rawMaterial) — 품목제조신고 제품(이슈 #12) + 원료형 데이터(이슈 #20) */
 export type ProductSearchField = 'product' | 'rawMaterial';
 
 /** 검색 결과 1건 — 품목제조신고 제품의 정규화 칼럼(백필) 값 */
@@ -9,6 +9,7 @@ export interface ProductSearchItem {
   productName: string;
   rawMaterialName: string | null;
   functionalityText: string | null;
+  intakeNote: string | null;
   reportNo: string | null;
   apiCode: string;
 }
@@ -59,18 +60,20 @@ export class ProductsService {
     const column = params.field === 'rawMaterial' ? 'raw_material_name' : 'product_name';
     const pattern = `%${escapeLike(query)}%`;
 
-    const whereSql = `api_code IN ('C003','I0030') AND ${column} ILIKE $1`;
+    const apiCodes = params.field === 'rawMaterial' ? "('C003','I0030','I-0040','I-0050')" : "('C003','I0030')";
+    const whereSql = `api_code IN ${apiCodes} AND ${column} ILIKE $1`;
 
     const rows = await this.prisma.$queryRawUnsafe<
       Array<{
         product_name: string;
         raw_material_name: string | null;
         functionality_text: string | null;
+        intake_note: string | null;
         report_no: string | null;
         api_code: string;
       }>
     >(
-      `SELECT product_name, raw_material_name, functionality_text, report_no, api_code
+      `SELECT product_name, raw_material_name, functionality_text, intake_note, report_no, api_code
        FROM foodsafety_rows
        WHERE ${whereSql}
        ORDER BY ${column} ASC, id ASC
@@ -95,6 +98,7 @@ export class ProductsService {
         productName: r.product_name,
         rawMaterialName: r.raw_material_name,
         functionalityText: r.functionality_text,
+        intakeNote: r.intake_note,
         reportNo: r.report_no,
         apiCode: r.api_code,
       })),

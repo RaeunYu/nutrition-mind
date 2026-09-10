@@ -162,3 +162,13 @@ CREATE INDEX idx_product_recommendations_ingredient ON product_recommendations (
 CREATE UNIQUE INDEX idx_product_recommendations_unique
   ON product_recommendations (customer_id, ingredient_id, api_code, report_no)
   WHERE api_code IS NOT NULL AND report_no IS NOT NULL;
+
+-- 이슈 #20 — 원료형(I-0040·I-0050) 정규화 + 섭취량·주의사항 칼럼
+ALTER TABLE foodsafety_rows ADD COLUMN intake_note text;
+UPDATE foodsafety_rows
+SET raw_material_name = payload->>'APLC_RAWMTRL_NM', functionality_text = payload->>'FNCLTY_CN', report_no = payload->>'HF_FNCLTY_MTRAL_RCOGN_NO', intake_note = TRIM(BOTH FROM COALESCE(payload->>'DAY_INTK_CN','') || CASE WHEN COALESCE(payload->>'DAY_INTK_CN','') <> '' AND COALESCE(payload->>'IFTKN_ATNT_MATR_CN','') <> '' THEN ' / ' ELSE '' END || COALESCE(payload->>'IFTKN_ATNT_MATR_CN',''))
+WHERE api_code = 'I-0040';
+UPDATE foodsafety_rows
+SET raw_material_name = payload->>'RAWMTRL_NM', functionality_text = payload->>'PRIMARY_FNCLTY', report_no = payload->>'HF_FNCLTY_MTRAL_RCOGN_NO', intake_note = TRIM(BOTH FROM COALESCE(payload->>'DAY_INTK_LOWLIMIT','') || CASE WHEN COALESCE(payload->>'DAY_INTK_LOWLIMIT','') <> '' AND COALESCE(payload->>'IFTKN_ATNT_MATR_CN','') <> '' THEN ' / ' ELSE '' END || COALESCE(payload->>'IFTKN_ATNT_MATR_CN',''))
+WHERE api_code = 'I-0050';
+UPDATE foodsafety_rows SET intake_note = payload->>'NTK_MTHD' WHERE api_code IN ('C003','I0030') AND intake_note IS NULL;

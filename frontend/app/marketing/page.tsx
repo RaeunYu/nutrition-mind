@@ -170,17 +170,20 @@ export default function MarketingPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 12 }}>
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>
-                  <th style={{ padding: 6 }}>제품명</th>
-                  <th style={{ padding: 6 }}>원료</th>
+                  <th style={{ padding: 6 }}>제품명·원료</th>
                   <th style={{ padding: 6 }}>기능성</th>
+                  <th style={{ padding: 6 }}>1일 섭취량·주의사항</th>
                 </tr>
               </thead>
               <tbody>
                 {researchResults.map((p, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: 6 }}>{p.productName}</td>
-                    <td style={{ padding: 6, fontSize: 12 }}>{(p.rawMaterials ?? '').slice(0, 80) || '—'}</td>
+                    <td style={{ padding: 6 }}>
+                      {(p.productName || p.rawMaterialName || '—')}
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>{p.apiCode} · {p.reportNo ?? '—'}</div>
+                    </td>
                     <td style={{ padding: 6, fontSize: 12 }}>{(p.functionality ?? '').slice(0, 80) || '—'}</td>
+                    <td style={{ padding: 6, fontSize: 12 }}>{(p.intakeNote ?? '').slice(0, 100) || '—'}</td>
                   </tr>
                 ))}
               </tbody>

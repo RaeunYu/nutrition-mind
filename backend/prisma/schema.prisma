@@ -64,6 +64,8 @@ model FoodsafetyRow {
   rawMaterialName   String?  @map("raw_material_name")
   /// 기능성 문구 (PRIMARY_FNCLTY)
   functionalityText String?  @map("functionality_text")
+  /// 1일 섭취량·섭취 주의사항 (DAY_INTK_CN·NTK_MTHD 등, 이슈 #20)
+  intakeNote        String?  @map("intake_note")
   /// 신고번호 (PRDLST_REPORT_NO)
   reportNo          String?  @map("report_no")
 
