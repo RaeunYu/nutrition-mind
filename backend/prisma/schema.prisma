@@ -119,6 +119,7 @@ model Customer {
   accessLogs  AccessLog[]
   intakeProducts CustomerProduct[]
   interests      CustomerInterest[]
+  recommendations ProductRecommendation[]
 
   @@map("customers")
 }
@@ -178,6 +179,7 @@ model Ingredient {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   interests CustomerInterest[]
+  recommendations ProductRecommendation[]
 
   @@map("ingredients")
 }
@@ -192,4 +194,29 @@ model CustomerInterest {
 
   @@id([customerId, ingredientId])
   @@map("customer_interests")
+}
+
+/// 추천 제품 제안 (이슈 #17) — 성분 갭 기반 품목제조신고 제품 제안.
+/// 담당자 확인 절차: status proposed →(수용) accepted | (보류) held, decided_at 기록 — 자동 확정 없음.
+/// 제품 데이터는 개인정보가 아니므로 평문 저장(ADR-0002는 개인식별 필드에만 적용).
+/// 동일 제안 중복 차단용 부분 유니크 인덱스(idx_product_recommendations_unique, WHERE api_code·report_no NOT NULL)
+/// 는 Prisma 미지원 ops — 수동 SQL로만 관리(db/init/01_schema.sql·db/migrations 참고. #15 customer_products 선례).
+/// status: 'proposed' | 'accepted' | 'held' (DB CHECK 제약으로 존재 — Prisma는 String으로 매핑)
+model ProductRecommendation {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId    String     @map("customer_id") @db.Uuid
+  customer      Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  ingredientId  String     @map("ingredient_id") @db.Uuid
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  apiCode       String?    @map("api_code")
+  reportNo      String?    @map("report_no")
+  productName   String     @map("product_name")
+  rawMaterials  String?    @map("raw_materials")
+  status        String     @default("proposed")
+  decidedAt     DateTime?  @map("decided_at") @db.Timestamptz(6)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([customerId], map: "idx_product_recommendations_customer")
+  @@index([ingredientId], map: "idx_product_recommendations_ingredient")
+  @@map("product_recommendations")
 }

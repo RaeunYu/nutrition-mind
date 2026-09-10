@@ -24,6 +24,7 @@ import {
   IngredientRule,
   InterestRef,
 } from './ingredient-mapping.service';
+import { RecommendationService, type FoodSafetyCandidate } from './recommendation.service';
 
 /**
  * 고객 API (ADR-0002, 이슈 #13).
@@ -56,6 +57,7 @@ export class CustomersController {
     private readonly crypto: CryptoService,
     private readonly accessLog: AccessLogService,
     private readonly mapping: IngredientMappingService,
+    private readonly recommendation: RecommendationService,
   ) {}
 
   /** 고객 목록 — 개인식별 필드 마스킹(이름 첫 글자 + '**', 연락처 뒤 4자리, 이메일 도메인). */
@@ -299,6 +301,165 @@ export class CustomersController {
     return this.mapping.buildGapView(inputs, ruleList, interests);
   }
 
+  /**
+   * 성분 갭 기반 추천 제안 생성 (이슈 #17).
+   * 갭 성분(관심 성분 중 미커버)의 키워드로 품목제조신고 후보를 검색해 제안 레코드로 저장한다.
+   * 이미 섭취 중인 제품은 제외하고, 동일 제안은 부분 유니크 인덱스로 차단된다(재생성 멱등).
+   */
+  @Post(':id/recommendations/generate')
+  async generateRecommendations(@Param('id') id: string) {
+    await this.ensureCustomer(id);
+    const [interestRows, intakeRows, manualRows, rules, linkedProducts] = await Promise.all([
+      this.prisma.customerInterest.findMany({
+        where: { customerId: id },
+        include: { ingredient: true },
+        orderBy: { ingredient: { createdAt: 'asc' } },
+      }),
+      this.prisma.customerProduct.findMany({ where: { customerId: id } }),
+      this.prisma.customerIngredient.findMany({ where: { customerId: id } }),
+      this.prisma.ingredient.findMany({ orderBy: { createdAt: 'asc' } }),
+      this.prisma.customerProduct.findMany({ where: { customerId: id } }),
+    ]);
+
+    const ruleList: IngredientRule[] = rules.map((r) => ({
+      id: r.id,
+      name: r.name,
+      synonyms: r.synonyms,
+      keywords: r.keywords,
+    }));
+    const inputs: MaterialInput[] = [
+      ...intakeRows.map((p) => ({
+        productName: p.productName,
+        rawMaterialText: p.rawMaterials,
+        source: 'intake_product' as const,
+      })),
+      ...manualRows.map((m) => ({
+        productName: null,
+        rawMaterialText: m.ingredientName,
+        source: 'manual_ingredient' as const,
+      })),
+    ];
+    const interests: InterestRef[] = interestRows.map((r) => ({
+      ingredientId: r.ingredientId,
+      name: r.ingredient.name,
+    }));
+    const gapView = this.mapping.buildGapView(inputs, ruleList, interests);
+
+    // 이미 섭취 중인 제품(api_code+report_no)은 추천에서 제외한다.
+    const linkedKeys = new Set(
+      linkedProducts
+        .filter((p) => p.source === 'foodsafety' && p.apiCode && p.reportNo)
+        .map((p) => `${p.apiCode}#${p.reportNo}`),
+    );
+
+    // 갭 성분별 키워드로 품목제조신고 후보를 검색한다(ILIKE + trgm 인덱스).
+    const candidates: FoodSafetyCandidate[] = [];
+    const seenCandidate = new Set<string>();
+    for (const gapItem of gapView.gap) {
+      const keywords = ruleList
+        .find((r) => r.id === gapItem.ingredientId)
+        ?.keywords?.split(',').map((k) => k.trim()).filter(Boolean) ?? [];
+      if (keywords.length === 0) continue;
+      const patterns = keywords.slice(0, 4).map((k) => `%${k}%`);
+      const rows = await this.prisma.$queryRawUnsafe<Array<{
+        api_code: string; report_no: string | null; product_name: string; raw_material_name: string | null;
+      }>>(
+        `SELECT api_code, report_no, product_name, raw_material_name
+         FROM foodsafety_rows
+         WHERE raw_material_name ILIKE ANY($1::text[])
+         ORDER BY product_name
+         LIMIT 8`,
+        patterns,
+      );
+      for (const row of rows) {
+        const dedupe = `${row.api_code}#${row.report_no ?? ''}`;
+        if (seenCandidate.has(dedupe)) continue;
+        seenCandidate.add(dedupe);
+        candidates.push({
+          apiCode: row.api_code,
+          reportNo: row.report_no,
+          productName: row.product_name,
+          rawMaterials: row.raw_material_name,
+        });
+      }
+    }
+
+    const generation = this.recommendation.buildProposals(gapView.gap, ruleList, candidates, linkedKeys);
+    let createdCount = 0;
+    const items: Array<Record<string, unknown>> = [];
+    for (const draft of generation.proposals) {
+      try {
+        const row = await this.prisma.productRecommendation.create({
+          data: {
+            customerId: id,
+            ingredientId: draft.ingredientId,
+            apiCode: draft.apiCode,
+            reportNo: draft.reportNo,
+            productName: draft.productName,
+            rawMaterials: draft.rawMaterials,
+            status: 'proposed',
+          },
+        });
+        createdCount++;
+        items.push({
+          id: row.id, ingredientName: draft.ingredientName, apiCode: draft.apiCode,
+          reportNo: draft.reportNo, productName: draft.productName,
+          evidenceKeyword: draft.evidenceKeyword, evidenceRawMaterial: draft.evidenceRawMaterial,
+          status: row.status,
+        });
+      } catch (e) {
+        if ((e as { code?: string }).code === 'P2002') continue; // 이미 제안됨 — 멱등
+        throw e;
+      }
+    }
+    return {
+      created: createdCount,
+      noCandidateIngredients: generation.noCandidateIngredients,
+      items,
+    };
+  }
+
+  /** 추천 제안 목록 — 상태 포함(proposed·accepted·held). */
+  @Get(':id/recommendations')
+  async listRecommendations(@Param('id') id: string) {
+    await this.ensureCustomer(id);
+    const rows = await this.prisma.productRecommendation.findMany({
+      where: { customerId: id },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((r) => ({
+      id: r.id, ingredientId: r.ingredientId, apiCode: r.apiCode, reportNo: r.reportNo,
+      productName: r.productName, rawMaterials: r.rawMaterials,
+      status: r.status, decidedAt: r.decidedAt,
+    }));
+  }
+
+  /** 추천 제안 상태 변경(수용/보류) — 담당자 확인 절차. 자동 수용·섭취 자동 등록은 없다. */
+  @Patch(':id/recommendations/:rid')
+  async decideRecommendation(
+    @Param('id') id: string,
+    @Param('rid') rid: string,
+    @Body() body: DecideRecommendationBody,
+  ) {
+    const status = (body ?? {}).status;
+    if (status !== 'accepted' && status !== 'held' && status !== 'proposed') {
+      throw new BadRequestException('status는 accepted·held·proposed 중 하나여야 합니다.');
+    }
+    const existing = await this.prisma.productRecommendation.findFirst({
+      where: { id: rid, customerId: id },
+    });
+    if (!existing) throw new NotFoundException('추천 제안을 찾을 수 없습니다.');
+    const updated = await this.prisma.productRecommendation.update({
+      where: { id: rid },
+      data: { status, decidedAt: status === 'proposed' ? null : new Date() },
+    });
+    return {
+      id: updated.id,
+      status: updated.status,
+      decidedAt: updated.decidedAt,
+    };
+  }
+
   /** 관심 성분 목록 — 마스터 등록 순(갭 응답과 같은 순서). */
   private async listInterests(customerId: string) {
     const rows = await this.prisma.customerInterest.findMany({
@@ -441,6 +602,8 @@ interface CreateCustomerBody {
   memo?: string;
 }
 type UpdateCustomerBody = CreateCustomerBody;
+
+type DecideRecommendationBody = { status?: 'accepted' | 'held' | 'proposed' };
 
 interface AddIntakeProductBody {
   source?: 'foodsafety' | 'manual';

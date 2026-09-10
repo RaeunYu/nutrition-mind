@@ -141,3 +141,24 @@ CREATE TABLE customer_interests (
   PRIMARY KEY (customer_id, ingredient_id)
 );
 CREATE INDEX idx_customer_interests_ingredient ON customer_interests (ingredient_id);
+
+-- 추천 제품 제안 (이슈 #17): 성분 갭 기반 품목제조신고 제품 제안 — 담당자 확인(수용/보류) 절차, 자동 확정 없음.
+-- status: proposed(제안) → accepted(수용) | held(보류) — accepted여도 섭취 제품 자동 등록은 하지 않는다.
+CREATE TABLE product_recommendations (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id   uuid NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  ingredient_id uuid NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
+  api_code      text,                  -- 품목제조신고 API 코드(C003·I0030)
+  report_no     text,                  -- 신고번호(연결 식별자 — 이슈 #15 선례)
+  product_name  text NOT NULL,
+  raw_materials text,                  -- 제안 시점 원료 텍스트 스냅샷(근거 표시용)
+  status        text NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed','accepted','held')),
+  decided_at    timestamptz,           -- 담당자 확인(수용/보류) 시각
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_product_recommendations_customer ON product_recommendations (customer_id);
+CREATE INDEX idx_product_recommendations_ingredient ON product_recommendations (ingredient_id);
+-- 동일 제안 중복 차단: (고객, 성분, 제품) 조합 유니크 — 후보는 api_code·report_no가 항상 존재하므로 부분 유니크 인덱스
+CREATE UNIQUE INDEX idx_product_recommendations_unique
+  ON product_recommendations (customer_id, ingredient_id, api_code, report_no)
+  WHERE api_code IS NOT NULL AND report_no IS NOT NULL;

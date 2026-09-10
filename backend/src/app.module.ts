@@ -14,6 +14,7 @@ import { ProductsService } from './products.service';
 import { CryptoService } from './crypto.service';
 import { AccessLogService } from './access-log.service';
 import { IngredientMappingService } from './ingredient-mapping.service';
+import { RecommendationService } from './recommendation.service';
 
 @Module({
   imports: [
@@ -26,6 +27,6 @@ import { IngredientMappingService } from './ingredient-mapping.service';
     }),
   ],
   controllers: [HealthController, AuthController, ChatController, CustomersController, IngredientsController, ProductsController, AdminController],
-  providers: [LlmService, ProductsService, CryptoService, AccessLogService, IngredientMappingService],
+  providers: [LlmService, ProductsService, CryptoService, AccessLogService, IngredientMappingService, RecommendationService],
 })
 export class AppModule {}

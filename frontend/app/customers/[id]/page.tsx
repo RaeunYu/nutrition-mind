@@ -64,6 +64,17 @@ interface IntakeProduct {
   functionality: string | null;
 }
 
+interface RecommendationItem {
+  id: string;
+  ingredientName: string;
+  apiCode: string | null;
+  productName: string;
+  reportNo: string | null;
+  evidenceKeyword: string;
+  evidenceRawMaterial: string;
+  status: string;
+}
+
 interface SearchResult {
   productName: string;
   rawMaterialName: string | null;
@@ -95,6 +106,9 @@ export default function CustomerDetailPage() {
   const [manual, setManual] = useState({ productName: '', rawMaterials: '', functionality: '' });
   const [intakeMessage, setIntakeMessage] = useState('');
   const [intakeBusy, setIntakeBusy] = useState(false);
+  const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
+  const [recommendationMessage, setRecommendationMessage] = useState('');
+  const [recommendationBusy, setRecommendationBusy] = useState(false);
 
   // 관심 성분·성분 갭 (이슈 #16)
   const [master, setMaster] = useState<IngredientMaster[]>([]);
@@ -125,6 +139,13 @@ export default function CustomerDetailPage() {
       setCustomer(data);
       setEdit({ name: data.name ?? '', phone: data.phone ?? '', email: data.email ?? '', memo: data.memo ?? '' });
       setIntakes(data.intakeProducts ?? []);
+      const recRes = await fetch(`${BACKEND}/customers/${params.id}/recommendations`, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      if (recRes.ok) {
+        const recData = await recRes.json();
+        setRecommendations(recData.items ?? []);
+      }
       setSelected((data.interests ?? []).map((i) => i.ingredientId)); // 저장된 관심 성분 기준(재로드 시 갱신)
       setError('');
     } catch (e) {
@@ -296,6 +317,46 @@ export default function CustomerDetailPage() {
     } finally { setIntakeBusy(false); }
   }
 
+  async function generateRecommendations() {
+    if (!auth || !params?.id) return;
+    setRecommendationBusy(true); setRecommendationMessage('');
+    try {
+      const res = await fetch(`${BACKEND}/customers/${params.id}/recommendations/generate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRecommendationMessage(data?.message ?? '추천 생성 실패');
+      } else {
+        setRecommendationMessage(`추천 ${data.created}건 생성`);
+        await reload();
+      }
+    } catch (e) {
+      setRecommendationMessage('추천 생성 실패: ' + String(e));
+    } finally { setRecommendationBusy(false); }
+  }
+
+  async function decide(rid: string, status: 'accepted' | 'held') {
+    if (!auth || !params?.id) return;
+    setRecommendationBusy(true); setRecommendationMessage('');
+    try {
+      const res = await fetch(`${BACKEND}/customers/${params.id}/recommendations/${rid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.accessToken}` },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setRecommendationMessage('상태 변경 완료');
+        await reload();
+      } else {
+        setRecommendationMessage('상태 변경 실패');
+      }
+    } catch (e) {
+      setRecommendationMessage('상태 변경 실패: ' + String(e));
+    } finally { setRecommendationBusy(false); }
+  }
+
   if (!auth) {
     return <main style={{ padding: 40, color: '#64748b' }}>인증 확인 중…</main>;
   }
@@ -435,6 +496,49 @@ export default function CustomerDetailPage() {
                   ))}
                 </div>
               )}
+            </section>
+
+            <section style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ fontSize: 15, margin: 0 }}>💡 성분 갭 기반 추천 제안</h2>
+                <button onClick={() => { void generateRecommendations(); }} disabled={recommendationBusy}
+                  style={{ padding: '6px 12px', cursor: 'pointer', borderRadius: 6, fontSize: 13 }}>
+                  추천 생성
+                </button>
+              </div>
+              <p style={{ fontSize: 12, color: '#64748b' }}>
+                성분 갭(미커버 관심 성분)을 제공하는 품목제조신고 제품을 근거와 함께 제안합니다 — 담당자가 수용·보류로 확인하세요.
+              </p>
+              {recommendationMessage && <p style={{ color: '#334155', fontSize: 13 }}>{recommendationMessage}</p>}
+              {recommendations.map((r) => (
+                <div key={r.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <strong style={{ fontSize: 13 }}>{r.productName}</strong>
+                    <span style={{
+                      fontSize: 11, padding: '2px 8px', borderRadius: 999,
+                      background: r.status === 'accepted' ? '#dcfce7' : r.status === 'held' ? '#fef3c7' : '#e0e7ff',
+                      color: '#1e293b',
+                    }}>
+                      {r.status === 'accepted' ? '수용' : r.status === 'held' ? '보류' : '제안됨'}
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: '#475569' }}>
+                    근거: 관심 성분 <strong>{r.ingredientName}</strong> 을 키워드 "{r.evidenceKeyword}" 로 커버
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>
+                    {r.apiCode} · {r.reportNo}
+                  </p>
+                  {r.status === 'proposed' && (
+                    <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                      <button onClick={() => { void decide(r.id, 'accepted'); }} disabled={recommendationBusy}
+                        style={{ fontSize: 12, padding: '4px 10px', cursor: 'pointer', borderRadius: 6 }}>수용</button>
+                      <button onClick={() => { void decide(r.id, 'held'); }} disabled={recommendationBusy}
+                        style={{ fontSize: 12, padding: '4px 10px', cursor: 'pointer', borderRadius: 6 }}>보류</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {recommendations.length === 0 && <p style={{ color: '#94a3b8', fontSize: 13 }}>추천 제안이 없습니다 — "추천 생성"을 눌러보세요.</p>}
             </section>
 
             <section style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
