@@ -46,7 +46,6 @@ services:
     build: ./mcp-server
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nutrition}:${POSTGRES_PASSWORD:-nutrition_dev_pw}@db:5432/${POSTGRES_DB:-nutrition_mind}
-      MCP_TOKEN: ${MCP_TOKEN:-dev-mcp-token-change-me}
     ports:
       - "8000:8000"
     depends_on:

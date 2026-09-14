@@ -13,12 +13,9 @@ import requests
 from psycopg.rows import dict_row
 from fastmcp import FastMCP
 from starlette.applications import Starlette
-from starlette.middleware import Middleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
-MCP_TOKEN = os.environ.get("MCP_TOKEN", "dev-mcp-token-change-me")
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://nutrition:nutrition_dev_pw@db:5432/nutrition_mind")
 
 mcp = FastMCP("nutrition-mind")
@@ -95,18 +92,6 @@ def get_notified_functionality(function_name: str) -> str:
     return json.dumps({"function": function_name, "rows": rows}, ensure_ascii=False, default=str)
 
 
-class TokenAuthMiddleware(BaseHTTPMiddleware):
-    """토큰 기반 간단 인증: Authorization: Bearer <MCP_TOKEN> 필수."""
-
-    async def dispatch(self, request, call_next):
-        if request.url.path in ("/health", "/", "/health/"):
-            return await call_next(request)  # 모니터링용 health는 인증 예외
-        auth = request.headers.get("authorization", "")
-        if not auth.startswith("Bearer ") or auth[len("Bearer "):] != MCP_TOKEN:
-            return JSONResponse({"error": "인증 실패: 유효한 Bearer 토큰이 필요합니다."}, status_code=401)
-        return await call_next(request)
-
-
 async def health(request):
     return JSONResponse({"status": "ok", "service": "nutrition-mind-mcp"})
 
@@ -117,6 +102,5 @@ app = Starlette(
         Route("/health", health, methods=["GET"]),
         Mount("/", app=mcp_app),
     ],
-    middleware=[Middleware(TokenAuthMiddleware)],
     lifespan=mcp_app.lifespan,  # FastMCP 세션 매니저 초기화 필수
 )

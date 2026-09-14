@@ -43,12 +43,6 @@ echo 'OPENAI_API_KEY=sk-...' >> .env
 echo 'OPENAI_API_KEY=sk-...' >> .env
 ```
 
-### 2) MCP 토큰 발급
-
-```bash
-openssl rand -hex 32   # 출력값을 .env의 MCP_TOKEN에 붙여넣기
-```
-
 ### 3) Ollama 임베딩 모델 준비 (호스트에서)
 
 ```bash
@@ -125,16 +119,11 @@ docker compose up -d --build
 
 > 시크릿탭 2개 조합도 동일하게 동작합니다(세션 쿠키·localStorage는 시크릿 창별로 분리됨).
 
-## 🔑 MCP 토큰 사용법
-
-MCP 서버는 `Authorization: Bearer <MCP_TOKEN>` 헤더를 요구합니다:
-
-```bash
-TOKEN=$(grep '^MCP_TOKEN=' .env | cut -d= -f2)
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/health
-```
+## 🔑 MCP 도구
 
 MCP 도구 4종: `search_legal_provisions`, `get_functional_ingredient`, `get_product_report`, `get_notified_functionality`
+
+Claude Desktop 연동(stdio)은 아래 [🖥️ Claude Desktop 연동](#️-claude-desktop-연동-stdio--권장) 섹션 참조 — 토큰 불필요.
 
 ### 🖥️ Claude Desktop 연동 (stdio — 권장)
 
@@ -162,7 +151,7 @@ uv venv .venv && UV_CACHE_DIR=/tmp/uv-cache uv pip install -r requirements.txt p
 }
 ```
 
-> stdio는 HTTP 인증 미들웨어를 통과하지 않으므로 `MCP_TOKEN`이 불필요합니다. 서버가 `.env`(프로젝트 루트)에서 `DATABASE_URL`(호스트 5433)·`OLLAMA_BASE_URL`을 자동 로드합니다.
+> stdio는 HTTP 인증 미들웨어를 통과하지 않으므로 별도 토큰이 불필요합니다. 서버가 `.env`(프로젝트 루트)에서 `DATABASE_URL`(호스트 5433)·`OLLAMA_BASE_URL`을 자동 로드합니다.
 > 경로는 절대 경로로 지정 — Claude Desktop이 `cwd`를 제어하지 않습니다. 프로젝트를 다른 경로에 클론한 경우 두 경로를 수정하세요.
 
 **3. Claude Desktop 재시작** — 설정 저장 후 앱을 완전히 종료하고 재실행하면, 대화 입력창에 🔌 아이콘이 나타나며 도구 4종이 연결됩니다.
