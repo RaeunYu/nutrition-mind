@@ -136,46 +136,40 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/health
 
 MCP 도구 4종: `search_legal_provisions`, `get_functional_ingredient`, `get_product_report`, `get_notified_functionality`
 
-### 🖥️ Claude Desktop 연동
+### 🖥️ Claude Desktop 연동 (stdio — 권장)
 
-localhost:8000에서 구동되는 MCP 서버는 **SSE(Streamable HTTP) 트랜스포트**를 사용하며, Claude Desktop에서 바로 연동할 수 있습니다.
+Claude Desktop의 claude_desktop_config.json에서 원격 HTTP/SSE 설정은 **"유효한 MCP 서버 구성이 아님" 오류**가 발생할 수 있습니다(Claude Desktop은 원격 MCP를 Connectors UI로만 지원). 데모 테스트를 위한 가장 간단한 방법은 **stdio 트랜스포트로 호스트에서 직접 실행**하는 것입니다 — 네트워크 노출·헤더 인증이 불필요합니다.
 
-**1. 토큰 확인** — `.env`의 `MCP_TOKEN` 값을 복사합니다:
+**1. MCP 서버 venv 구성** — 호스트에서 직접 실행하기 위한 의존성을 설치합니다:
 
 ```bash
-grep '^MCP_TOKEN=' .env
+cd mcp-server
+uv venv .venv && UV_CACHE_DIR=/tmp/uv-cache uv pip install -r requirements.txt python-dotenv
 ```
 
-**2. Claude Desktop 설정 편집** — `claude_desktop_config.json` 파일을 열어(menus: Claude Desktop → Settings → Developer → Edit Config) `mcpServers`에 아래를 추가합니다:
+> uv가 없으면 `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt python-dotenv`로 대체할 수 있습니다.
+
+**2. Claude Desktop 설정 편집** — `claude_desktop_config.json` 파일을 열어(Claude Desktop → Settings → Developer → Edit Config) `mcpServers`에 아래를 추가합니다:
 
 ```json
 {
   "mcpServers": {
     "nutrition-mind": {
-      "type": "sse",
-      "url": "http://localhost:8000/mcp",
-      "headers": {
-        "Authorization": "Bearer <MCP_TOKEN>"
-      }
+      "command": "/Users/yulaeun/nutrition-mind/mcp-server/.venv/bin/python",
+      "args": ["/Users/yulaeun/nutrition-mind/mcp-server/run_stdio.py"]
     }
   }
 }
 ```
 
-`<MCP_TOKEN>`은 1단계에서 확인한 토큰 값으로 교체합니다(.env의 `MCP_TOKEN`이 비어 있으면 기본값 `dev-mcp-token-change-me`가 적용됩니다 — 데모 외 용도로는 반드시 교체하세요).
+> stdio는 HTTP 인증 미들웨어를 통과하지 않으므로 `MCP_TOKEN`이 불필요합니다. 서버가 `.env`(프로젝트 루트)에서 `DATABASE_URL`(호스트 5433)·`OLLAMA_BASE_URL`을 자동 로드합니다.
+> 경로는 절대 경로로 지정 — Claude Desktop이 `cwd`를 제어하지 않습니다. 프로젝트를 다른 경로에 클론한 경우 두 경로를 수정하세요.
 
 **3. Claude Desktop 재시작** — 설정 저장 후 앱을 완전히 종료하고 재실행하면, 대화 입력창에 🔌 아이콘이 나타나며 도구 4종이 연결됩니다.
 
 **4. 동작 확인** — Claude Desktop에서 "건강기능식품 영업 허가는 어떻게 받아?" 등의 질문을 입력해 도구 호출이 발생하는지 확인합니다.
 
-> - Claude Desktop은 SSE 헤더 커스텀 인증을 지원하는 버전이 필요합니다(구버전은 헤더 미지원 — 이 경우 아래 대안 참조).
-> - **대안(헤더 인증 미지원 시)**: ngrok 등 터널링 도구로 URL을 노출하거나, `claude mcp add` CLI로 연결 설정을 생성합니다.
-> - 다른 데스크톱 앱(ChatGPT 등)은 각 앱의 MCP 커넥터 설정에 동일한 SSE URL과 헤더를 적용합니다.
-> - MCP 서버가 localhost:8000에서 구동 중이어야 합니다(`docker-compose ps`로 확인).
-
-## 🗺️ 구현 현황 (GitHub Issues)
-
-- [x] #2 프로젝트 골격 및 Docker Compose 인프라 구성
+**고급: 원격 HTTP/SSE 연결** — Claude Desktop의 원격 MCP 연결은 Connectors UI 또는 최신 버전의 claude_desktop_config.json에서 지원되지만, 설정 형식 오류("유효한 MCP 서버 구성이 아님")가 발생할 수 있습니다. Docker HTTP 서버(localhost:8000)는 기존대로 구동 중이며, curl로 토큰 인증을 확인할 수 있습니다(위 🔑 섹션 참조). 원격 연결이 필요하면 `type: "http"`로 설정하고 SSE는 폐기된 전송 방식이므로 피하세요.프라 구성
 - [x] #3 국가법령정보센터 법령 수집 및 legal_provisions 스키마 저장 (7종 398조문, 표시기준=administrative_rule, 참조 엣지 53건)
 - [x] #4 법령 RAG 파이프라인 및 LangGraph 6단계 노드 구현 (pgvector 검색·6단계 그래프 동작) — RAG 평가지표 스크립트는 #8에서
 - [x] #5 식약처 기능성 정보 구조화 조회 및 total_count 증분 갱신 (5개 API 93,273건 적재)
