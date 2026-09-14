@@ -32,8 +32,8 @@ def _query(sql: str, params: tuple = ()) -> list[dict]:
 
 
 def _embed(query: str) -> list[float]:
-    ollama = os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
     model = os.environ.get("EMBEDDING_MODEL", "qwen3-embedding:0.6b")
+    ollama = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
     res = requests.post(f"{ollama}/api/embed", json={"model": model, "input": query}, timeout=120)
     res.raise_for_status()
     return res.json()["embeddings"][0]

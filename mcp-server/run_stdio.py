@@ -8,14 +8,13 @@ Claude Desktop(claude_desktop_config.json)의 mcpServers 항목에서
   cd mcp-server && uv venv && uv pip install -r requirements.txt
   → claude_desktop_config.json의 command를 .venv/bin/python으로 지정
 
-.env(프로젝트 루트)에서 DATABASE_URL(호스트 5433)·OLLAMA_BASE_URL을 읽는다.
 MCP_TOKEN은 stdio에서 미사용(HTTP 인증 미들웨어가 없는 경로).
 """
 import os
 import sys
 from pathlib import Path
 
-# .env 로드 — 프로젝트 루트(mcp-server의 상위)에서 DATABASE_URL(호스트 5433)·OLLAMA_BASE_URL을 읽는다
+# .env 로드 — 프로젝트 루트(mcp-server의 상위)에서 DATABASE_URL(호스트 5433) 읽는다
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -23,9 +22,9 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 # 호스트 실행: 기본값이 컨테이너 네트워크(db:5432·host.docker.internal)를 가리키므로
 # .env에 값이 없으면 호스트 측 기본값으로 교체한다.
 os.environ.setdefault("DATABASE_URL", "postgresql://nutrition:nutrition_dev_pw@localhost:5433/nutrition_mind")
-os.environ.setdefault("OLLAMA_BASE_URL", "http://localhost:11434")
 # stdio는 HTTP 미들웨어를 통과하지 않으므로 토큰 불필요 — server.py import 시 참조만 되면 무해
 os.environ.setdefault("MCP_TOKEN", "stdio-no-token")
+os.environ["OLLAMA_BASE_URL"] = "http://localhost:11434"  # stdio는 호스트에서 실행 — .env의 Docker 전용 URL(host.docker.internal)을 오버라이드
 
 # server.py에서 FastMCP 인스턴스를 가져온다(도구 4종 등록 포함).
 # Starlette HTTP 앱 구성은 import 시 실행되지만 stdio 모드에서는 mcp.run()이 우선한다.
