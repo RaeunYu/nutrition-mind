@@ -136,6 +136,43 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/health
 
 MCP 도구 4종: `search_legal_provisions`, `get_functional_ingredient`, `get_product_report`, `get_notified_functionality`
 
+### 🖥️ Claude Desktop 연동
+
+localhost:8000에서 구동되는 MCP 서버는 **SSE(Streamable HTTP) 트랜스포트**를 사용하며, Claude Desktop에서 바로 연동할 수 있습니다.
+
+**1. 토큰 확인** — `.env`의 `MCP_TOKEN` 값을 복사합니다:
+
+```bash
+grep '^MCP_TOKEN=' .env
+```
+
+**2. Claude Desktop 설정 편집** — `claude_desktop_config.json` 파일을 열어(menus: Claude Desktop → Settings → Developer → Edit Config) `mcpServers`에 아래를 추가합니다:
+
+```json
+{
+  "mcpServers": {
+    "nutrition-mind": {
+      "type": "sse",
+      "url": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer <MCP_TOKEN>"
+      }
+    }
+  }
+}
+```
+
+`<MCP_TOKEN>`은 1단계에서 확인한 토큰 값으로 교체합니다(.env의 `MCP_TOKEN`이 비어 있으면 기본값 `dev-mcp-token-change-me`가 적용됩니다 — 데모 외 용도로는 반드시 교체하세요).
+
+**3. Claude Desktop 재시작** — 설정 저장 후 앱을 완전히 종료하고 재실행하면, 대화 입력창에 🔌 아이콘이 나타나며 도구 4종이 연결됩니다.
+
+**4. 동작 확인** — Claude Desktop에서 "건강기능식품 영업 허가는 어떻게 받아?" 등의 질문을 입력해 도구 호출이 발생하는지 확인합니다.
+
+> - Claude Desktop은 SSE 헤더 커스텀 인증을 지원하는 버전이 필요합니다(구버전은 헤더 미지원 — 이 경우 아래 대안 참조).
+> - **대안(헤더 인증 미지원 시)**: ngrok 등 터널링 도구로 URL을 노출하거나, `claude mcp add` CLI로 연결 설정을 생성합니다.
+> - 다른 데스크톱 앱(ChatGPT 등)은 각 앱의 MCP 커넥터 설정에 동일한 SSE URL과 헤더를 적용합니다.
+> - MCP 서버가 localhost:8000에서 구동 중이어야 합니다(`docker-compose ps`로 확인).
+
 ## 🗺️ 구현 현황 (GitHub Issues)
 
 - [x] #2 프로젝트 골격 및 Docker Compose 인프라 구성
