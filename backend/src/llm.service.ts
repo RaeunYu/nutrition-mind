@@ -160,6 +160,25 @@ export class LlmService {
   }
 
   /**
+   * 범용 단일 텍스트 완성 — 도구 스키마 없이 system/user 프롬프트로 한 번 호출한다.
+   * 도구 라우팅의 LLM 분류기(Epic #3 · T4) 등이 사용한다. 실패는 예외가 아니라 ok=false로 반환한다.
+   */
+  async complete(system: string, user: string): Promise<{ ok: boolean; text?: string; reason?: string; provider?: LlmProvider; model?: string }> {
+    const status = this.check();
+    if (!status.active) {
+      return { ok: false, reason: status.reason, provider: status.provider, model: status.model };
+    }
+    try {
+      const text = await this.call(system, user);
+      return { ok: true, text, provider: status.provider, model: status.model };
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      this.logger.warn(`LLM 완성 실패 (${status.provider}/${status.model}): ${msg}`);
+      return { ok: false, reason: msg, provider: status.provider, model: status.model };
+    }
+  }
+
+  /**
    * 표시·광고 문구 판정 (이슈 #19) — 근거 조문에 근거해서 허용/주의/금지 판정.
    * 근거에 근거 없는 판정은 'undetermined'(사유 포함)로 강제한다(출처 없는 생성 금지).
    * LLM 응답은 JSON으로 강제하며, 파싱 실패·형식 이탈은 undetermined로 안전 폴백한다.

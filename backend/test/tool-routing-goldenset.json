@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "note": "도구 라우팅 골드셋 (Epic #3 · T4 #36, T7 #39에서 사용자 검수). expected는 기대 카테고리이며, compound 문항은 2개 카테고리(top-2 병합 대상)다.",
+  "categories": ["배송", "주문·결제", "고객·성분", "법령·기능성"],
+  "questions": [
+    { "id": "ship-1", "question": "김건강 고객 배송이 안 와요", "expected": ["배송"] },
+    { "id": "ship-2", "question": "배송 출발했나요?", "expected": ["배송"] },
+    { "id": "ship-3", "question": "배송이 어떻게 진행되고 있나요", "expected": ["배송"] },
+    { "id": "ship-4", "question": "운송장 번호로 어디까지 왔는지 알려줘", "expected": ["배송"] },
+
+    { "id": "order-1", "question": "이 고객이 최근에 뭘 주문했어?", "expected": ["주문·결제"] },
+    { "id": "order-2", "question": "주문번호 ORD-0002 상세 내역 보여줘", "expected": ["주문·결제"] },
+    { "id": "order-3", "question": "결제가 실패한 주문이 있어?", "expected": ["주문·결제"] },
+    { "id": "order-4", "question": "환불 처리된 건이 있나요", "expected": ["주문·결제"] },
+
+    { "id": "cust-1", "question": "김건강 고객 정보 좀 보여줘", "expected": ["고객·성분"] },
+    { "id": "cust-2", "question": "이 고객이 무슨 영양제를 먹고 있지?", "expected": ["고객·성분"] },
+    { "id": "cust-3", "question": "관심 성분 대비 부족한 성분이 뭐야?", "expected": ["고객·성분"] },
+    { "id": "cust-4", "question": "고객 이름으로 검색해줘 — 이준호", "expected": ["고객·성분"] },
+
+    { "id": "law-1", "question": "건강기능식품 영업 허가 절차는?", "expected": ["법령·기능성"] },
+    { "id": "law-2", "question": "표시·광고 문구에 질병 예방 표현이 가능한가요", "expected": ["법령·기능성"] },
+    { "id": "law-3", "question": "오메가3의 기능성 원료 인정 내용 알려줘", "expected": ["법령·기능성"] },
+    { "id": "law-4", "question": "품목제조신고 제품 정보를 조회해줘", "expected": ["법령·기능성"] },
+
+    { "id": "mix-1", "question": "배송 중인데 이 제품 광고 문구도 괜찮은지 봐줘", "expected": ["배송", "법령·기능성"], "compound": true },
+    { "id": "mix-2", "question": "결제 실패한 주문의 환불 근거 법령이 있나요", "expected": ["주문·결제", "법령·기능성"], "compound": true },
+    { "id": "mix-3", "question": "이 고객 성분 갭에 맞는 제품의 기능성 정보를 알려줘", "expected": ["고객·성분", "법령·기능성"], "compound": true },
+    { "id": "mix-4", "question": "배송이 안 오는데 고객이 먹는 제품 성분도 확인해줘", "expected": ["배송", "고객·성분"], "compound": true }
+  ]
+}
