@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "도구 라우팅 골드셋 (Epic #3 · T4 #36, T7 #39에서 사용자 검수). expected는 기대 카테고리이며, compound 문항은 2개 카테고리(top-2 병합 대상)다.",
+  "note": "도구 라우팅 골드셋 (Epic #3 · T4 #36). 사용자 검수 확정(2026-09-16). expected는 기대 카테고리이며, compound 문항은 2개 카테고리(top-2 병합 대상)다.",
   "categories": ["배송", "주문·결제", "고객·성분", "법령·기능성"],
   "questions": [
     { "id": "ship-1", "question": "김건강 고객 배송이 안 와요", "expected": ["배송"] },

@@ -7,8 +7,8 @@
 - `README.md` — 서비스 구성·실행법, 구현 현황 체크리스트
 - `seed.yaml` — 1차 스펙(Goal/제약/수용기준). 갱신·예외는 `docs/adr/` 기록 우선
 - `project-background-context.md` — 배경 컨텍스트 + 외부 API 실측 기록(호출 제약·필수 파라미터)
-- `HANDOFF-2026-09-16.md` — 직전 에이전트 인수인계(Epic 3 완료 상태, MCP 인증 비목표, Docker/Prisma/LLM 실측 환경 제약)
-  - 이전 핸드오프: `HANDOFF-2026-09-10.md` · `HANDOFF-2026-09-09.md`(환경 상수 일부는 최신 문서가 우선)
+- `HANDOFF-2026-09-10.md` — 이전 에이전트 인수인계(Epic 2 완료 상태, 환경 제약)
+  - 이전 핸드오프: `HANDOFF-2026-09-09.md`(환경 상수 일부는 최신 문서가 우선)
 - `docs/tool-routing-eval.md` — 도구 라우팅 2기법 정량 비교·튜닝 함정
 - `docs/obsidian-vault.md` — ADR 양식(3절) + Vault 운영
 

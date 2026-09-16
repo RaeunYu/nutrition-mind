@@ -221,7 +221,7 @@ Epic 2: https://github.com/RaeunYu/nutrition-mind/issues/9
 - [x] #36 도구 라우터 2기법: 임베딩 top-k **81.3%** / LLM 분류 **100%**, 복합 의도 top-2 병합 recall 87.5% / 100%
 - [x] #37 에이전트 하네스 루프: 도구 스키마 주입 → `tool_calls` 실행 → 재호출(A 사전 주입 / B 동적 발견), 최대 3회·강제 합성, `routing`·`trace` 응답
 - [x] #38 챗봇 UI: 도구 추적 패널 · A/B 토글 · 라우팅 방식 토글 · 지연 안내
-- [ ] #39 검증·문서: 골드셋 사용자 검수 대기(그 외 완료)
+- [x] #39 검증·문서: 라우팅 골드셋 20문항 **사용자 검수 확정**(2026-09-16)·정확도 비교표(`docs/tool-routing-eval.md`)·README 갱신
 
 **데모 — 도구 라우팅 확인 절차**
 1. `consultant@example.com` / `consult1234` 로그인 → `/chat`
