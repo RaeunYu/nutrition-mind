@@ -207,6 +207,26 @@ async function main() {
   const total = await prisma.$queryRawUnsafe<Array<{ n: bigint }>>("SELECT COUNT(*) AS n FROM customers");
   console.log(`✅ 고객 총 ${total[0].n}명 (신규 생성 ${createdNew}명)`);
 
+  // 관심 성분 시딩 — 고객의 수동 성분(customer_ingredients)을 관심 성분으로도 지정한다(데모 가정).
+  // 성분 갭(#16)·추천(#17)·챗봇 개인화(#18)와 Epic #3 고객·성분 도구가 의미 있는 데이터를 갖게 한다.
+  {
+    const ingredientRows = await prisma.ingredient.findMany();
+    const ingredientIdByName = new Map(ingredientRows.map((i) => [i.name, i.id]));
+    const links = await prisma.customerIngredient.findMany();
+    let interestCount = 0;
+    for (const link of links) {
+      const ingredientId = ingredientIdByName.get(link.ingredientName);
+      if (!ingredientId) continue;
+      await prisma.customerInterest.upsert({
+        where: { customerId_ingredientId: { customerId: link.customerId, ingredientId } },
+        update: {},
+        create: { customerId: link.customerId, ingredientId },
+      });
+      interestCount++;
+    }
+    console.log(`✅ 관심 성분 시딩: ${interestCount}건(수동 성분 기준)`);
+  }
+
   // 상거래 도메인 (Epic #3 · T1) — 주문·주문 항목·결제·배송·배송 이력 + 섭취 제품 파생.
   await seedCommerce(prisma);
 }

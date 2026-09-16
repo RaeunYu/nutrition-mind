@@ -12,7 +12,7 @@
 |---|---|---|
 | `frontend` (Next.js) | 3000 | JWT 로그인 + 최소 기능 챗봇 데모 |
 | `backend` (NestJS + **Prisma v7**) | 3001 | 인증·챗 API, ORM: Prisma v7 (`prisma-client` 제너레이터 + driver adapter). LangGraph 6단계 파이프라인은 Task #4에서 연결 |
-| `mcp` (Python FastMCP) | 8000 | MCP 도구 4종 + 토큰 기반 간단 인증 |
+| `mcp` (Python FastMCP) | 8000 | MCP 도구 13종(법령·기능성 4 · 배송 3 · 주문·결제 3 · 고객·성분 3) |
 | `db` (PostgreSQL + pgvector) | 5432 | legal_provisions / provision_references / 식약처 데이터 |
 
 법령 스키마 방향(확정): `legal_provisions`(조문 1개=청크 1개, `law_type` 포함 — 표시기준은 `administrative_rule`) + `provision_references`(위임/인용 엣지). 자세한 배경은 `project-background-context.md` 1장을 참고하세요.
@@ -119,9 +119,18 @@ docker compose up -d --build
 
 > 시크릿탭 2개 조합도 동일하게 동작합니다(세션 쿠키·localStorage는 시크릿 창별로 분리됨).
 
-## 🔑 MCP 도구
+## 🔑 MCP 도구 (13종)
 
-MCP 도구 4종: `search_legal_provisions`, `get_functional_ingredient`, `get_product_report`, `get_notified_functionality`
+| 카테고리 | 도구 |
+|---|---|
+| 법령·기능성 (4) | `search_legal_provisions` · `get_functional_ingredient` · `get_product_report` · `get_notified_functionality` |
+| 배송 (3) | `list_customer_shipments` · `get_shipment_status` · `get_tracking_events` |
+| 주문·결제 (3) | `list_customer_orders` · `get_order_detail` · `get_payment_status` |
+| 고객·성분 (3) | `get_customer_profile` · `get_ingredient_gap` · `search_customers` |
+
+각 도구는 MCP `_meta.category`(그리고 description 선두의 `[카테고리: …]`)로 카테고리를 노출합니다 — Epic #3의 도구 라우팅이 이 메타데이터로 카테고리별 도구를 고릅니다.
+
+> **고객 데이터 도구는 접근 로그를 남깁니다**(ADR-0002 개정). 하네스가 보내는 `X-Actor-Email`/`X-Actor-Role` 헤더를 actor로 기록하고, Claude Desktop 같은 stdio 직접 호출은 `mcp-stdio`로 기록합니다. 접근 **기록**일 뿐 접근 **통제**가 아닙니다(아래 한계 절 참조).
 
 Claude Desktop 연동(stdio)은 아래 [🖥️ Claude Desktop 연동](#️-claude-desktop-연동-stdio--권장) 섹션 참조 — 토큰 불필요.
 
@@ -154,11 +163,25 @@ uv venv .venv && UV_CACHE_DIR=/tmp/uv-cache uv pip install -r requirements.txt p
 > stdio는 HTTP 인증 미들웨어를 통과하지 않으므로 별도 토큰이 불필요합니다. 서버가 `.env`(프로젝트 루트)에서 `DATABASE_URL`(호스트 5433)·`OLLAMA_BASE_URL`을 자동 로드합니다.
 > 경로는 절대 경로로 지정 — Claude Desktop이 `cwd`를 제어하지 않습니다. 프로젝트를 다른 경로에 클론한 경우 두 경로를 수정하세요.
 
-**3. Claude Desktop 재시작** — 설정 저장 후 앱을 완전히 종료하고 재실행하면, 대화 입력창에 🔌 아이콘이 나타나며 도구 4종이 연결됩니다.
+**3. Claude Desktop 재시작** — 설정 저장 후 앱을 완전히 종료하고 재실행하면, 대화 입력창에 🔌 아이콘이 나타나며 도구 13종이 연결됩니다.
 
-**4. 동작 확인** — Claude Desktop에서 "건강기능식품 영업 허가는 어떻게 받아?" 등의 질문을 입력해 도구 호출이 발생하는지 확인합니다.
+**4. 동작 확인** — Claude Desktop에서 "건강기능식품 영업 허가는 어떻게 받아?" 등의 질문을 입력해 법령 도구 호출이 발생하는지 확인합니다.
 
-**고급: 원격 HTTP/SSE 연결** — Claude Desktop의 원격 MCP 연결은 Connectors UI 또는 최신 버전의 claude_desktop_config.json에서 지원되지만, 설정 형식 오류("유효한 MCP 서버 구성이 아님")가 발생할 수 있습니다. Docker HTTP 서버(localhost:8000)는 기존대로 구동 중이며, curl로 토큰 인증을 확인할 수 있습니다(위 🔑 섹션 참조). 원격 연결이 필요하면 `type: "http"`로 설정하고 SSE는 폐기된 전송 방식이므로 피하세요.프라 구성
+**5. 상거래·고객 도구 사용 (Epic #3)** — "김건강 고객 배송이 안 와요"처럼 입력하면 Claude가 `search_customers`로 고객을 찾고 `list_customer_shipments`·`get_shipment_status`로 배송 상태를 확인합니다. 데모용 배송 지연 데이터는 **김건강**(집화 후 5일 정체, 약속 배송일 경과)입니다.
+> 고객 연락처·이메일·메모는 봉투 암호화되어 있고 MCP 서버는 복호화 키를 갖지 않으므로, 도구는 이름·주문·배송 정보만 반환합니다(개인정보 최소노출).
+
+**고급: 원격 HTTP 연결** — Claude Desktop의 원격 MCP 연결은 Connectors UI로 지원됩니다. Docker HTTP 서버(`http://localhost:8000/mcp`)는 구동 중이며 stdio와 **동일한 13종**을 노출합니다. 원격 연결이 필요하면 `type: "http"`로 설정하고 SSE는 폐기된 전송 방식이므로 피하세요.
+
+### ⚠️ 알려진 한계 — MCP 외부 접근에는 요청 단위 인증이 없습니다 (비목표)
+
+웹 화면(`/chat`, `/customers`)은 JWT 로그인 뒤의 사내 담당자만 접근하지만, **MCP 서버는 Claude Desktop(stdio)과 HTTP(`localhost:8000/mcp`) 양쪽에 인증 없이 노출**됩니다. 즉 법령·기능성은 물론 **상거래·고객 도구까지 인증 없이 호출**할 수 있습니다.
+
+- 실환경이라면 MCP 요청마다 별도 인증·권한 확인이 필요합니다. **현 구현 목표에서 의도적으로 제외한 비목표**이며 구현 누락이 아닙니다(ADR-0003 「비목표로 남긴 위험」).
+- 접근 로그는 남지만 이는 **사후 기록이지 접근 통제가 아닙니다**(ADR-0002 개정).
+- 후속 에픽에서 MCP 요청 단위 인증을 도입할 때 이 절과 ADR을 함께 갱신하세요.
+
+## ✅ Epic 1 구현 현황 — 법령 RAG·MCP 데모 (이슈 #2~#8)
+
 - [x] #3 국가법령정보센터 법령 수집 및 legal_provisions 스키마 저장 (7종 398조문, 표시기준=administrative_rule, 참조 엣지 53건)
 - [x] #4 법령 RAG 파이프라인 및 LangGraph 6단계 노드 구현 (pgvector 검색·6단계 그래프 동작) — RAG 평가지표 스크립트는 #8에서
 - [x] #5 식약처 기능성 정보 구조화 조회 및 total_count 증분 갱신 (5개 API 93,273건 적재)

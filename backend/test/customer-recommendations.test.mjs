@@ -61,7 +61,13 @@ async function main() {
   {
     const ingredients = await api('GET', '/ingredients', consultant);
     const items = Array.isArray(ingredients.body) ? ingredients.body : ingredients.body?.items ?? [];
-    const ids = items.slice(0, 3).map((i) => i.id);
+    const allIds = items.map((i) => i.id);
+    // 고객은 상거래 시드(Epic #3)로 주문 파생 섭취 제품을 가질 수 있으므로,
+    // 관심 성분은 실제로 커버되지 않는(갭) 성분에서 고른다 — 그래야 추천 제안이 생성된다.
+    await api('PUT', `/customers/${customerId}/interests`, consultant, { ingredientIds: allIds });
+    const gapRes = await api('GET', `/customers/${customerId}/gap`, consultant);
+    const gapIds = (gapRes.body?.gap ?? []).map((g) => g.ingredientId);
+    const ids = (gapIds.length >= 3 ? gapIds : allIds).slice(0, 3);
     await api('PUT', `/customers/${customerId}/interests`, consultant, { ingredientIds: ids });
 
     const generated = await api('POST', `/customers/${customerId}/recommendations/generate`, consultant);
