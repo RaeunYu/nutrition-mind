@@ -127,6 +127,7 @@ model Customer {
   intakeProducts CustomerProduct[]
   interests      CustomerInterest[]
   recommendations ProductRecommendation[]
+  orders         Order[]
 
   @@map("customers")
 }
@@ -230,4 +231,109 @@ model ProductRecommendation {
   @@index([customerId], map: "idx_product_recommendations_customer")
   @@index([ingredientId], map: "idx_product_recommendations_ingredient")
   @@map("product_recommendations")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 상거래 도메인 (Epic #3, ADR-0003) — 상담 담당자의 주문·결제·배송 문의를
+// 도구가 조회하는 근거. 용어는 CONTEXT.md(주문·주문 항목·결제·배송·배송 이력·운송장)를 따른다.
+// 상태값은 영문 코드로 저장하고 사용자 노출 문구는 도구/화면 계층에서 한국어로 변환한다.
+// 코드값 CHECK 제약은 Prisma 미표현 DDL — 수동 마이그레이션 SQL에 존재(기존 테이블과 동일).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 주문 — 고객이 접수한 구매 건. 상태: 'pending_payment'|'paid'|'preparing'|'shipping'|'delivered'|'cancelled'
+model Order {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderNo     String   @unique @map("order_no")
+  customerId  String   @map("customer_id") @db.Uuid
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// 주문 상태(결제대기/결제완료/상품준비/배송중/배송완료/취소)
+  status      String
+  orderedAt   DateTime @map("ordered_at") @db.Timestamptz(6)
+  /// 결제 통화는 원(KRW) — 정수 원 단위
+  totalAmount Int      @map("total_amount")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  items     OrderItem[]
+  payment   Payment?
+  shipments Shipment[]
+
+  @@index([customerId])
+  @@index([status])
+  @@map("orders")
+}
+
+/// 주문 항목 — 주문에 포함된 개별 제품 줄. I0030 품목제조신고 제품을 참조하고 주문 시점 스냅샷을 저장한다(#15 패턴).
+model OrderItem {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId      String   @map("order_id") @db.Uuid
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  apiCode      String?  @map("api_code")
+  reportNo     String?  @map("report_no")
+  productName  String   @map("product_name")
+  rawMaterials String?  @map("raw_materials")
+  quantity     Int      @default(1)
+  unitAmount   Int      @map("unit_amount")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([orderId])
+  @@index([reportNo])
+  @@map("order_items")
+}
+
+/// 결제 — 주문 대금 지급 상태. 주문과 1:1. 상태: 'paid'|'failed'|'refunded'
+model Payment {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId      String    @unique @map("order_id") @db.Uuid
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// 결제 상태(결제완료/결제실패/환불완료)
+  status       String
+  /// 표시용 결제 수단 코드: 'card'|'bank_transfer'|'point'
+  method       String
+  amount       Int
+  paidAt       DateTime? @map("paid_at") @db.Timestamptz(6)
+  failedReason String?   @map("failed_reason")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([status])
+  @@map("payments")
+}
+
+/// 배송 — 주문 항목이 고객에게 발송되는 단위. 하나의 주문이 여러 배송으로 나뉠 수 있다(부분배송).
+/// 상태: 'ready'|'collected'|'in_transit'|'delivered'|'delayed'|'failed'
+model Shipment {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId     String    @map("order_id") @db.Uuid
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// 배송 상태(준비/집화완료/배송중/배송완료/배송지연/배송실패)
+  status      String
+  /// 택배사
+  carrier     String?
+  /// 운송장 번호
+  trackingNo  String?   @map("tracking_no")
+  /// 약속 배송일 — 배송 지연 판단 기준
+  promisedAt  DateTime? @map("promised_at") @db.Timestamptz(6)
+  shippedAt   DateTime? @map("shipped_at") @db.Timestamptz(6)
+  deliveredAt DateTime? @map("delivered_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  events ShipmentEvent[]
+
+  @@index([orderId])
+  @@index([status])
+  @@map("shipments")
+}
+
+/// 배송 이력 — 배송의 시간순 상태 변화. 배송 지연 여부를 판단하는 근거가 된다.
+model ShipmentEvent {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shipmentId String   @map("shipment_id") @db.Uuid
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  status     String
+  location   String?
+  note       String?
+  occurredAt DateTime @map("occurred_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([shipmentId, occurredAt])
+  @@map("shipment_events")
 }

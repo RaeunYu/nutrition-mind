@@ -123,7 +123,9 @@ async function main() {
 
     const vitd = (g.interests ?? []).find((i) => i.name === '비타민D');
     check('비타민D 커버(테스트 제품 원료 콜레칼시페롤)', vitd?.covered === true, JSON.stringify(vitd ?? null));
-    const evidence = (vitd?.evidence ?? []).find((e) => e.source === 'intake_product');
+    // 고객은 상거래 시드(Epic #3)로 주문 파생 섭취 제품도 가질 수 있으므로,
+    // 이 테스트가 만든 픽스처(TEST_PRODUCT_A)의 근거를 지정해 검증한다.
+    const evidence = (vitd?.evidence ?? []).find((e) => e.source === 'intake_product' && e.productName === TEST_PRODUCT_A);
     check('근거: 매칭 키워드·제품명·원료 텍스트',
       evidence?.matchedKeyword === '콜레칼시페롤' && evidence?.productName === TEST_PRODUCT_A && String(evidence?.rawMaterialText ?? '').includes('콜레칼시페롤'),
       JSON.stringify(evidence ?? null));

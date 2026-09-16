@@ -1,5 +1,5 @@
 /**
- * 데모 시딩 (Prisma 스크립트) — 역할 3종 + 데모 계정 + 고객:성분 1:N.
+ * 데모 시딩 (Prisma 스크립트) — 역할 3종 + 데모 계정 + 고객:성분 1:N + 상거래 도메인(주문·결제·배송).
  * 실행: npx prisma db seed
  * 멱등(upsert)하므로 재실행해도 안전. 대용량 CSV 적재는 제외(ingest/load_foodsafety_csv.py 사용).
  */
@@ -13,6 +13,7 @@ loadEnv({ path: resolve(process.cwd(), "..", ".env") });
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { CryptoService } from "../src/crypto.service";
+import { seedCommerce } from "./seed-commerce";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -205,6 +206,9 @@ async function main() {
   }
   const total = await prisma.$queryRawUnsafe<Array<{ n: bigint }>>("SELECT COUNT(*) AS n FROM customers");
   console.log(`✅ 고객 총 ${total[0].n}명 (신규 생성 ${createdNew}명)`);
+
+  // 상거래 도메인 (Epic #3 · T1) — 주문·주문 항목·결제·배송·배송 이력 + 섭취 제품 파생.
+  await seedCommerce(prisma);
 }
 
 main()
