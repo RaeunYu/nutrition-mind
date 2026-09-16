@@ -5,30 +5,19 @@ import { PrismaService } from './prisma.service';
 import { CryptoService } from './crypto.service';
 import { IngredientMappingService, MaterialInput, IngredientRule } from './ingredient-mapping.service';
 import { AccessLogService } from './access-log.service';
-import { Pool } from 'pg';
+import { RagSearchService } from './rag-search.service';
 
 /** 상담 보조 챗봇: 법령 RAG(pgvector) 근거 + LLM 합성(선택, 폴백 지원) + 고객 컨텍스트 개인화(이슈 #18). */
 @Controller('chat')
 export class ChatController {
-  private pg: Pool | null = null;
-
   constructor(
     private readonly llm: LlmService,
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly mapping: IngredientMappingService,
     private readonly accessLog: AccessLogService,
+    private readonly rag: RagSearchService,
   ) {}
-
-  private pool() {
-    if (!this.pg) {
-      const url =
-        process.env.DATABASE_URL ??
-        'postgresql://nutrition:nutrition_dev_pw@db:5432/nutrition_mind';
-      this.pg = new Pool({ connectionString: url });
-    }
-    return this.pg;
-  }
 
   @UseGuards(JwtAuthGuard)
   @Post('chat')
@@ -96,35 +85,10 @@ export class ChatController {
       }
     }
 
-    // 1) 질문 임베딩 (Ollama — 임베딩은 항상 로컬)
-    const ollama = process.env.OLLAMA_BASE_URL ?? 'http://host.docker.internal:11434';
-    const model = process.env.EMBEDDING_MODEL ?? 'qwen3-embedding:0.6b';
-    const embRes = await fetch(`${ollama}/api/embed`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, input: question }),
-    });
-    const emb = (await embRes.json()) as { embeddings: number[][] };
-    const vec = emb.embeddings[0];
+    // 1) 법령 RAG — 공용 RagSearchService(질문 임베딩 + pgvector top 5). 이슈 #35에서 인라인 중복을 제거했다.
+    const rows = await this.rag.searchLegalProvisions(question, 5);
 
-    // 2) pgvector 검색 (top 5)
-    const res = await this.pool().query(
-      `SELECT law_name, law_type, article_no, article_title, content,
-              1 - (embedding <=> $1::vector) AS score
-       FROM legal_provisions
-       WHERE embedding IS NOT NULL
-       ORDER BY embedding <=> $1::vector LIMIT 5`,
-      [`[${vec.map((x) => x.toFixed(6)).join(',')}]`],
-    );
-    const rows = res.rows as Array<{
-      law_name: string;
-      article_no: string;
-      article_title: string | null;
-      content: string;
-      score: number;
-    }>;
-
-    // 3) 합성: LLM(선택) 성공 → 자연어 답변 / 실패·비활성 → 근거 나열 폴백
+    // 2) 합성: LLM(선택) 성공 → 자연어 답변 / 실패·비활성 → 근거 나열 폴백
     const llm = await this.llm.synthesize(
       question,
       rows.map((r) => ({

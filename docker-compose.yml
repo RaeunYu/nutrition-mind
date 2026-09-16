@@ -27,6 +27,9 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:0.6b}
       # 고객 개인정보 암호화 마스터 키(KEK) — 이슈 #13 (값은 .env의 MASTER_KEY에서만 관리)
       MASTER_KEY: ${MASTER_KEY:-}
+      # MCP 도구 카탈로그·실행 (Epic #3) — 컨테이너 네트워크의 mcp 서비스 /mcp
+      MCP_URL: ${MCP_URL:-http://mcp:8000/mcp}
+      MCP_TOOL_TIMEOUT_MS: ${MCP_TOOL_TIMEOUT_MS:-10000}
     ports:
       - "3001:3001"
     depends_on:
@@ -46,6 +49,9 @@ services:
     build: ./mcp-server
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nutrition}:${POSTGRES_PASSWORD:-nutrition_dev_pw}@db:5432/${POSTGRES_DB:-nutrition_mind}
+      # 컨테이너에서 호스트 Ollama로 접근(임베딩 도구 search_legal_provisions용)
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:0.6b}
     ports:
       - "8000:8000"
     depends_on:

@@ -21,9 +21,11 @@
     "test:recommendations": "node test/customer-recommendations.test.mjs",
     "test:research": "node test/research.test.mjs",
     "test:chat": "node test/chat-personalization.test.mjs",
-    "test:marketing": "node test/marketing-copy.test.mjs"
+    "test:marketing": "node test/marketing-copy.test.mjs",
+    "test:mcp-catalog": "tsx test/mcp-tool-catalog.test.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@nestjs/common": "^10.4.1",
     "@nestjs/config": "^3.2.3",
     "@nestjs/core": "^10.4.1",

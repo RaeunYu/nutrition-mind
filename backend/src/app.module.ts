@@ -17,6 +17,7 @@ import { AccessLogService } from './access-log.service';
 import { IngredientMappingService } from './ingredient-mapping.service';
 import { RecommendationService } from './recommendation.service';
 import { RagSearchService } from './rag-search.service';
+import { McpToolCatalogService } from './mcp-tool-catalog.service';
 
 @Module({
   imports: [
@@ -29,6 +30,6 @@ import { RagSearchService } from './rag-search.service';
     }),
   ],
   controllers: [HealthController, AuthController, ChatController, CustomersController, IngredientsController, ProductsController, AdminController, MarketingController],
-  providers: [LlmService, ProductsService, CryptoService, AccessLogService, IngredientMappingService, RecommendationService, RagSearchService],
+  providers: [LlmService, ProductsService, CryptoService, AccessLogService, IngredientMappingService, RecommendationService, RagSearchService, McpToolCatalogService],
 })
 export class AppModule {}
