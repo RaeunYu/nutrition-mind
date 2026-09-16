@@ -209,7 +209,29 @@ Epic 1: https://github.com/RaeunYu/nutrition-mind/issues/1
 
 Epic 2: https://github.com/RaeunYu/nutrition-mind/issues/9
 
-전체 회귀: 테스트 스크립트 13종 223케이스 전부 통과.
+전체 회귀: 테스트 스크립트 16종 **222케이스 전부 통과**(Epic 3 이후).
+
+### 🧩 Epic 3 — Tool Calling 루프와 Tool Routing/Selection (이슈 #32~#39)
+
+에이전트 하네스(LLM ↔ 도구 실행 루프)와 도구 라우팅을 도입하고, 상담 담당자의 주문·결제·배송 문의를 실제 데이터로 답하게 했다. 결정 기록: [`docs/adr/0003`](./docs/adr/0003-상거래-도메인과-도구-호출-하네스.md) · 라우팅 평가: [`docs/tool-routing-eval.md`](./docs/tool-routing-eval.md)
+
+- [x] #33 상거래 도메인: 주문·주문 항목·결제·배송·배송 이력 5엔터티, I0030 25종 제품 풀, 고객 20명·39주문, 시나리오 5종 + 부분배송(멱등 시드)
+- [x] #34 MCP 도구 13종: 배송 3 · 주문·결제 3 · 고객·성분 3 · 법령·기능성 4, 카테고리 메타(`_meta.category`) + 접근 로그(actor 헤더/`mcp-stdio`)
+- [x] #35 도구 카탈로그·실행 계층: `tools/list` 캐시·카테고리 그룹핑, `tools/call` 구조화 실행(타임아웃·오류), MCP 재시작 시 재연결
+- [x] #36 도구 라우터 2기법: 임베딩 top-k **81.3%** / LLM 분류 **100%**, 복합 의도 top-2 병합 recall 87.5% / 100%
+- [x] #37 에이전트 하네스 루프: 도구 스키마 주입 → `tool_calls` 실행 → 재호출(A 사전 주입 / B 동적 발견), 최대 3회·강제 합성, `routing`·`trace` 응답
+- [x] #38 챗봇 UI: 도구 추적 패널 · A/B 토글 · 라우팅 방식 토글 · 지연 안내
+- [ ] #39 검증·문서: 골드셋 사용자 검수 대기(그 외 완료)
+
+**데모 — 도구 라우팅 확인 절차**
+1. `consultant@example.com` / `consult1234` 로그인 → `/chat`
+2. 고객에서 **김건강**(배송 지연 데모 데이터) 선택
+3. 질문: "김건강 고객 배송이 안 와요"
+4. `라우팅 방식`을 **임베딩**으로 두고 `도구 주입 방식`을 **A · 사전 주입** → 추적 패널에 `배송` 카테고리 선택 → 배송 도구 3종 주입 → `list_customer_shipments`·`get_shipment_status`·`get_tracking_events` 호출 → "ORD-0002 배송지연(약속일 대비 3일 지연, 물류센터 보관 5일)" 답변
+5. 같은 질문을 **B · 동적 발견**으로 실행 → 첫 호출에 `list_tools`만 주입되고, LLM이 `list_tools(category="배송")`를 호출한 뒤 하네스가 배송 도구를 **재선언**하는 과정이 패널에 그대로 보인다
+6. `라우팅 방식`을 **LLM 분류**로 바꿔 같은 질문을 실행하면 라우팅 방식만 달라지고 나머지 흐름은 동일하다
+
+Epic 3: https://github.com/RaeunYu/nutrition-mind/issues/32
 
 ## 🗂️ Obsidian Vault 운영 (AC12)
 
