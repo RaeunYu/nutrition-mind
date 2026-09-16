@@ -23,7 +23,8 @@
     "test:chat": "node test/chat-personalization.test.mjs",
     "test:marketing": "node test/marketing-copy.test.mjs",
     "test:mcp-catalog": "tsx test/mcp-tool-catalog.test.ts",
-    "test:tool-routing": "tsx test/tool-routing.test.ts"
+    "test:tool-routing": "tsx test/tool-routing.test.ts",
+    "test:harness": "tsx test/agent-harness.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

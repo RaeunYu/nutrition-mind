@@ -45,23 +45,21 @@ export interface ToolActor {
   role?: string;
 }
 
-export interface ToolCallSuccess {
-  ok: true;
+/**
+ * 도구 실행 결과 — 단일 인터페이스(성공/실패 필드가 선택).
+ * 주의: tsconfig가 strict:false(strictNullChecks off)라 `ok: true|false` 리터럴 유니온 내로잉이
+ * 동작하지 않는다. 그래서 판별 유니온 대신 선택 필드를 쓴다.
+ */
+export interface ToolCallOutcome {
+  ok: boolean;
   tool: string;
   category: string;
-  result: unknown;
+  /** 성공 시 도구 결과(파싱됨). */
+  result?: unknown;
+  /** 실패 사유(성공 시 없음). */
+  error?: string;
   latencyMs: number;
 }
-
-export interface ToolCallFailure {
-  ok: false;
-  tool: string;
-  category: string;
-  error: string;
-  latencyMs: number;
-}
-
-export type ToolCallOutcome = ToolCallSuccess | ToolCallFailure;
 
 /** MCP tool 객체 → 카탈로그 항목. */
 export function mapToolDescriptor(tool: any): ToolDescriptor {
@@ -277,7 +275,7 @@ export class McpToolCatalogService implements OnModuleDestroy {
       result: parsed,
       error: isError ? String((parsed as any)?.error ?? '도구 실행 오류') : undefined,
       latencyMs: Date.now() - started,
-    } as ToolCallSuccess & ToolCallFailure;
+    };
   }
 
   /** 전체 호출(연결 포함)에 상한을 건다 — 연결이 멈춰도 하네스가 무한 대기하지 않도록. */
